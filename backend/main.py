@@ -24,10 +24,10 @@ MQTT_KEEPALIVE = int(os.getenv("MQTT_KEEPALIVE", "60"))
 MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "iot-dashboard-backend")
 MQTT_USERNAME = os.getenv("MQTT_USERNAME")
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
-MQTT_TLS_ENV = os.getenv("MQTT_TLS")
+MQTT_TLS_ENV = os.getenv("MQTT_TLS", "").strip().lower()
 MQTT_TLS = (
-    MQTT_TLS_ENV.lower() in {"1", "true", "yes", "on"}
-    if MQTT_TLS_ENV is not None
+    MQTT_TLS_ENV in {"1", "true", "yes", "on"}
+    if MQTT_TLS_ENV
     else MQTT_PORT == 8883 or bool(MQTT_USERNAME)
 )
 

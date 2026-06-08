@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import ssl
 import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -9,7 +10,16 @@ import paho.mqtt.client as mqtt
 
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
-MQTT_TOPIC = "sensors/data"
+MQTT_TOPIC = os.getenv("MQTT_TOPIC", "sensors/data")
+MQTT_KEEPALIVE = int(os.getenv("MQTT_KEEPALIVE", "60"))
+MQTT_USERNAME = os.getenv("MQTT_USERNAME")
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
+MQTT_TLS_ENV = os.getenv("MQTT_TLS", "").strip().lower()
+MQTT_TLS = (
+    MQTT_TLS_ENV in {"1", "true", "yes", "on"}
+    if MQTT_TLS_ENV
+    else MQTT_PORT == 8883 or bool(MQTT_USERNAME)
+)
 
 PUBLISH_INTERVAL = 5  # Sekunden
 
@@ -39,9 +49,15 @@ def generate_mq2_data(sensor_id: str) -> dict:
 
 def main():
     client = mqtt.Client()
+    if MQTT_USERNAME:
+        client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+
+    if MQTT_TLS:
+        client.tls_set(tls_version=ssl.PROTOCOL_TLS_CLIENT)
+
     while True:
         try:
-            client.connect(MQTT_BROKER, MQTT_PORT, 60)
+            client.connect(MQTT_BROKER, MQTT_PORT, MQTT_KEEPALIVE)
             print("Connected to MQTT broker.", flush=True)
             break
         except Exception as e:
