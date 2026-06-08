@@ -20,6 +20,9 @@ MQTT configuration via environment variables:
 - `MQTT_TOPIC` (default: `sensors/data`)
 - `MQTT_CLIENT_ID` (default: `iot-dashboard-backend`)
 - `MQTT_KEEPALIVE` (default: `60`)
+- `MQTT_USERNAME` (optional)
+- `MQTT_PASSWORD` (optional)
+- `MQTT_TLS` (optional, enabled automatically for port `8883` or when `MQTT_USERNAME` is set)
 
 ## MQTT payload format
 

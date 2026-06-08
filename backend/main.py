@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import ssl
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -21,6 +22,14 @@ MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_TOPIC = os.getenv("MQTT_TOPIC", "sensors/data")
 MQTT_KEEPALIVE = int(os.getenv("MQTT_KEEPALIVE", "60"))
 MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "iot-dashboard-backend")
+MQTT_USERNAME = os.getenv("MQTT_USERNAME")
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
+MQTT_TLS_ENV = os.getenv("MQTT_TLS")
+MQTT_TLS = (
+    MQTT_TLS_ENV.lower() in {"1", "true", "yes", "on"}
+    if MQTT_TLS_ENV is not None
+    else MQTT_PORT == 8883 or bool(MQTT_USERNAME)
+)
 
 TEMP_LIMIT = 30
 HUMIDITY_LIMIT = 70
@@ -294,8 +303,15 @@ def start_mqtt_listener() -> mqtt.Client | None:
     )
     client.on_connect = on_mqtt_connect
     client.on_message = on_mqtt_message
+
+    if MQTT_USERNAME:
+        client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+
+    if MQTT_TLS:
+        client.tls_set(tls_version=ssl.PROTOCOL_TLS_CLIENT)
+
     try:
-        client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        client.connect(MQTT_BROKER, MQTT_PORT, MQTT_KEEPALIVE)
     except OSError as exc:
         logger.error(
             "MQTT listener not started. Could not connect to %s:%d (%s).",
