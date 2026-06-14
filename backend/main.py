@@ -57,6 +57,7 @@ class SensorData(BaseModel):
     pressure_hpa: Optional[float] = None
     gas_value: Optional[int] = None
     smoke_warning: Optional[bool] = None
+    email_sent: bool = False
 
 
 def init_db() -> None:
@@ -73,6 +74,7 @@ def init_db() -> None:
             "pressure_hpa",
             "gas_value",
             "smoke_warning",
+            "email_sent",
         }
 
         def create_table(table_name: str) -> None:
@@ -87,7 +89,8 @@ def init_db() -> None:
                     humidity_percent REAL,
                     pressure_hpa REAL,
                     gas_value INTEGER,
-                    smoke_warning INTEGER
+                    smoke_warning INTEGER,
+                    email_sent INTEGER NOT NULL DEFAULT 0
                 )
                 """
             )
@@ -124,6 +127,7 @@ def init_db() -> None:
                     "smoke_warning"
                     if "smoke_warning" in existing_column_names
                     else "NULL AS smoke_warning",
+                    "email_sent" if "email_sent" in existing_column_names else "0 AS email_sent",
                 ]
                 conn.execute(
                     f"""
@@ -136,7 +140,8 @@ def init_db() -> None:
                         humidity_percent,
                         pressure_hpa,
                         gas_value,
-                        smoke_warning
+                        smoke_warning,
+                        email_sent
                     )
                     SELECT {", ".join(select_parts)}
                     FROM sensor_data
@@ -211,9 +216,10 @@ def on_mqtt_message(client: mqtt.Client, userdata: object, msg: mqtt.MQTTMessage
                 humidity_percent,
                 pressure_hpa,
                 gas_value,
-                smoke_warning
+                smoke_warning,
+                email_sent
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 sensor_data.sensor_id,
@@ -224,10 +230,10 @@ def on_mqtt_message(client: mqtt.Client, userdata: object, msg: mqtt.MQTTMessage
                 sensor_data.pressure_hpa,
                 sensor_data.gas_value,
                 smoke_warning_value,
+                0,
             ),
         )
-
-        conn.commit()
+        inserted_row_id = cursor.lastrowid
 
         alerts = []
 
@@ -269,6 +275,8 @@ def on_mqtt_message(client: mqtt.Client, userdata: object, msg: mqtt.MQTTMessage
 
         smoke_text = "Ja" if sensor_data.smoke_warning is True else "Nein"
 
+        email_sent = False
+
         if alerts:
             body = f"""
 IoT Dashboard Warnung: Grenzwert überschritten
@@ -288,7 +296,16 @@ Ausgelöste Warnungen:
 {chr(10).join("- " + alert for alert in alerts)}
 """
 
-            send_email_alert("IoT Warnung: Grenzwert überschritten", body)
+            email_sent = send_email_alert(
+                subject="IoT Dashboard Warnung: Grenzwert überschritten",
+                body=body,
+            )
+
+        cursor.execute(
+            "UPDATE sensor_data SET email_sent = ? WHERE id = ?",
+            (1 if email_sent else 0, inserted_row_id),
+        )
+        conn.commit()
 
         conn.close()
 
@@ -359,7 +376,8 @@ def get_latest_sensor_data() -> SensorData:
                    humidity_percent,
                    pressure_hpa,
                    gas_value,
-                   smoke_warning
+                   smoke_warning,
+                   email_sent
             FROM sensor_data
             ORDER BY timestamp DESC, id DESC
             LIMIT 1
@@ -380,6 +398,7 @@ def get_latest_sensor_data() -> SensorData:
         smoke_warning=(
             bool(row["smoke_warning"]) if row["smoke_warning"] is not None else None
         ),
+        email_sent=bool(row["email_sent"]),
     )
 
 
@@ -396,7 +415,8 @@ def get_sensor_history() -> list[SensorData]:
                    humidity_percent,
                    pressure_hpa,
                    gas_value,
-                   smoke_warning
+                   smoke_warning,
+                   email_sent
             FROM sensor_data
             ORDER BY timestamp DESC, id DESC
             """
@@ -414,6 +434,7 @@ def get_sensor_history() -> list[SensorData]:
             smoke_warning=(
                 bool(row["smoke_warning"]) if row["smoke_warning"] is not None else None
             ),
+            email_sent=bool(row["email_sent"]),
         )
         for row in rows
     ]

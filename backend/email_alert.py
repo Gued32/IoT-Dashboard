@@ -15,18 +15,18 @@ EMAIL_COOLDOWN_SECONDS = 300  # 5 Minuten
 last_email_time = 0
 
 
-def send_email_alert(subject: str, body: str) -> None:
+def send_email_alert(subject: str, body: str) -> bool:
     global last_email_time
 
     current_time = time.time()
 
     if current_time - last_email_time < EMAIL_COOLDOWN_SECONDS:
         print("Email skipped: cooldown active.")
-        return
+        return False
 
     if not EMAIL_SENDER or not EMAIL_PASSWORD or not EMAIL_RECEIVER:
         print("Email skipped: missing EMAIL environment variables.")
-        return
+        return False
 
     msg = EmailMessage()
     msg["Subject"] = subject
@@ -41,6 +41,8 @@ def send_email_alert(subject: str, body: str) -> None:
 
         last_email_time = current_time
         print("Email alert sent successfully.")
+        return True
 
     except Exception as e:
         print(f"Email error: {e}")
+        return False

@@ -352,6 +352,8 @@ elif latest is None:
     col2.metric("Luftfeuchtigkeit (%)", "–")
     st.info("Noch keine Messwerte vorhanden.")
 else:
+    email_alert_warnings = []
+
     if sensor_type == "BME280":
         col1, col2, col3 = st.columns(3)
 
@@ -378,19 +380,20 @@ else:
         PRESSURE_HIGH_LIMIT = 1030
 
         if latest.get("temperature_c") is not None and latest["temperature_c"] > TEMP_LIMIT:
-            st.warning(
-                f"Warnung: Hohe Temperatur erkannt ({latest['temperature_c']:.2f} °C)."
-            )
+            warning_text = f"Warnung: Hohe Temperatur erkannt ({latest['temperature_c']:.2f} °C)."
+            email_alert_warnings.append(warning_text)
+            st.warning(warning_text)
         if latest.get("humidity_percent") is not None and latest["humidity_percent"] > HUMIDITY_LIMIT:
-            st.warning(
-                f"Warnung: Hohe Luftfeuchtigkeit erkannt ({latest['humidity_percent']:.2f} %)."
-            )
+            warning_text = f"Warnung: Hohe Luftfeuchtigkeit erkannt ({latest['humidity_percent']:.2f} %)."
+            email_alert_warnings.append(warning_text)
+            st.warning(warning_text)
         if latest.get("pressure_hpa") is not None and latest["pressure_hpa"] < 980:
-            st.warning("Warnung: Niedriger Luftdruck erkannt")
+            warning_text = "Warnung: Niedriger Luftdruck erkannt"
+            st.warning(warning_text)
         if latest.get("pressure_hpa") is not None and latest["pressure_hpa"] > PRESSURE_HIGH_LIMIT:
-            st.warning(
-                f"Warnung: Hoher Luftdruck erkannt ({latest['pressure_hpa']:.2f} hPa)."
-            )
+            warning_text = f"Warnung: Hoher Luftdruck erkannt ({latest['pressure_hpa']:.2f} hPa)."
+            email_alert_warnings.append(warning_text)
+            st.warning(warning_text)
 
     elif sensor_type == "MQ2":
         col1, col2 = st.columns(2)
@@ -407,6 +410,9 @@ else:
                 "<h1 style='color: red;'>Ja</h1>",
                 unsafe_allow_html=True
             )
+            warning_text = "Warnung: Rauchwarnung erkannt."
+            email_alert_warnings.append(warning_text)
+            st.warning(warning_text)
         else:
             col2.markdown(
                 "<h1 style='color: green;'>Nein</h1>",
@@ -415,6 +421,14 @@ else:
 
     else:
         st.warning("Unbekannter Sensortyp.")
+
+    email_sent = latest.get("email_sent", False)
+    email_sent_success = email_sent is True or str(email_sent).lower() == "true" or email_sent == 1
+
+    if email_sent_success:
+        st.success("✅ E-Mail-Warnung wurde erfolgreich gesendet.")
+    elif email_alert_warnings:
+        st.info("📧 Warnung erkannt – E-Mail-Benachrichtigung ist aktiviert.")
 
     st.caption(f"Letztes Update: {latest_display}")
 
