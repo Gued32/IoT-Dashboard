@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import base64
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 import pandas as pd
@@ -6,6 +7,7 @@ import plotly.express as px
 import json
 import os
 from io import BytesIO
+from pathlib import Path
 from statistics import mean
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
@@ -16,6 +18,11 @@ from reportlab.lib.styles import getSampleStyleSheet
 
 
 default_backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+
+
+def image_to_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()
 
 
 def fetch_json(url: str):
@@ -426,7 +433,28 @@ else:
     email_sent_success = email_sent is True or str(email_sent).lower() == "true" or email_sent == 1
 
     if email_sent_success:
-        st.success("✅ E-Mail-Warnung wurde erfolgreich gesendet.")
+        email_icon_path = Path(__file__).resolve().parent / "assets" / "email_icon.png"
+        email_icon_base64 = image_to_base64(email_icon_path)
+
+        st.markdown(
+            f"""
+            <div style="
+                background-color: #e7f1ff;
+                padding: 16px 20px;
+                border-radius: 8px;
+                color: #004085;
+                font-size: 18px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            ">
+                <img src="data:image/png;base64,{email_icon_base64}"
+                     style="width: 28px; height: 28px; object-fit: contain;">
+                <span>Warnung erkannt – E-Mail-Warnung wurde erfolgreich gesendet.</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     elif email_alert_warnings:
         st.info("📧 Warnung erkannt – E-Mail-Benachrichtigung ist aktiviert.")
 

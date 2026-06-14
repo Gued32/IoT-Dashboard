@@ -15,6 +15,20 @@ from pydantic import BaseModel, ValidationError
 import paho.mqtt.client as mqtt
 from backend.email_alert import send_email_alert
 
+
+def format_email_sensor_type(sensor_id: str) -> str:
+    sensor_types = {
+        "bme280_1": "BME280 1 - Temperatur/Luftfeuchtigkeit/Luftdruck-Sensor (Sensor_1)",
+        "bme280_2": "BME280 2 - Temperatur/Luftfeuchtigkeit/Luftdruck-Sensor (Sensor_2)",
+        "mq2_1": "MQ2 1 - Gas-/Rauchüberwachung-Sensor (Sensor_3)",
+    }
+
+    return sensor_types.get(
+        sensor_id,
+        sensor_id.upper().replace("_", " "),
+    )
+
+
 BASE_DIR = Path(__file__).resolve().parents[1]
 DB_PATH = BASE_DIR / "database" / "iot_dashboard.db"
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
@@ -281,8 +295,7 @@ def on_mqtt_message(client: mqtt.Client, userdata: object, msg: mqtt.MQTTMessage
             body = f"""
 IoT Dashboard Warnung: Grenzwert überschritten
 
-Sensor: {sensor_data.sensor_id}
-Sensortyp: {sensor_data.sensor_type}
+Sensortyp: {format_email_sensor_type(sensor_data.sensor_id)}
 Zeit: {sensor_data.timestamp}
 
 Messwerte:
