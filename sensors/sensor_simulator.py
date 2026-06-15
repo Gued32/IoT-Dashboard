@@ -12,8 +12,8 @@ MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_TOPIC = os.getenv("MQTT_TOPIC", "sensors/data")
 MQTT_KEEPALIVE = int(os.getenv("MQTT_KEEPALIVE", "60"))
-MQTT_USERNAME = os.getenv("MQTT_USERNAME")
-MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
+MQTT_USERNAME = os.getenv("MQTT_SENSOR_USERNAME") or os.getenv("MQTT_USERNAME")
+MQTT_PASSWORD = os.getenv("MQTT_SENSOR_PASSWORD") or os.getenv("MQTT_PASSWORD")
 MQTT_TLS_ENV = os.getenv("MQTT_TLS", "").strip().lower()
 MQTT_TLS = (
     MQTT_TLS_ENV in {"1", "true", "yes", "on"}
@@ -22,6 +22,32 @@ MQTT_TLS = (
 )
 
 PUBLISH_INTERVAL = 5  # Sekunden
+mqtt_connected = False
+
+
+def on_connect(client, userdata, flags, rc):
+    global mqtt_connected
+
+    if rc == 0:
+        mqtt_connected = True
+        print("Sensor MQTT connected successfully", flush=True)
+    elif rc == 4:
+        mqtt_connected = False
+        print("Sensor MQTT connection failed: bad username or password", flush=True)
+    elif rc == 5:
+        mqtt_connected = False
+        print("Sensor MQTT connection failed: not authorized", flush=True)
+    else:
+        mqtt_connected = False
+        print(f"Sensor MQTT connection failed with code {rc}", flush=True)
+
+
+def on_disconnect(client, userdata, rc):
+    global mqtt_connected
+
+    mqtt_connected = False
+    if rc != 0:
+        print(f"Sensor MQTT disconnected with code {rc}", flush=True)
 
 
 def generate_bme280_data(sensor_id: str) -> dict:
@@ -49,6 +75,9 @@ def generate_mq2_data(sensor_id: str) -> dict:
 
 def main():
     client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
+
     if MQTT_USERNAME and MQTT_PASSWORD:
         client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
 
@@ -59,7 +88,7 @@ def main():
         try:
             client.connect(MQTT_BROKER, MQTT_PORT, MQTT_KEEPALIVE)
             client.loop_start()
-            print("Connected to MQTT broker.", flush=True)
+            print("MQTT connection request sent.", flush=True)
             break
         except Exception as e:
             print(f"MQTT broker not ready yet: {e}", flush=True)
@@ -68,6 +97,11 @@ def main():
     print("Sensor simulator started...")
 
     while True:
+        if not mqtt_connected:
+            print("Sensor not connected. Data not sent.", flush=True)
+            time.sleep(PUBLISH_INTERVAL)
+            continue
+
         sensor_messages = [
             generate_bme280_data("bme280_1"),
             generate_bme280_data("bme280_2"),

@@ -2,6 +2,7 @@
 import base64
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import json
@@ -15,6 +16,7 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
+from sklearn.linear_model import LinearRegression
 
 
 default_backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
@@ -75,6 +77,67 @@ def format_sensor_name(sensor_id):
         sensor_id,
         sensor_id.upper().replace("_", " ")
     )
+
+
+def predict_future_value(df, value_column, minutes_ahead=30):
+    """
+    Erstellt eine einfache ML-Vorhersage für einen Sensorwert.
+    Beispiel: Temperatur in 30 Minuten.
+    """
+
+    if df is None or df.empty:
+        return None
+
+    data = df.copy()
+
+    if "timestamp" not in data.columns:
+        return None
+
+    if value_column not in data.columns:
+        return None
+
+    if "timestamp_dt" in data.columns:
+        data["prediction_timestamp_dt"] = pd.to_datetime(
+            data["timestamp_dt"],
+            errors="coerce",
+            utc=True,
+        )
+    else:
+        data["prediction_timestamp_dt"] = pd.to_datetime(
+            data["timestamp"],
+            errors="coerce",
+            format="mixed",
+            utc=True,
+        )
+    data[value_column] = pd.to_numeric(data[value_column], errors="coerce")
+
+    data = data.dropna(subset=["prediction_timestamp_dt", value_column])
+
+    if len(data) < 5:
+        return None
+
+    data = data.sort_values("prediction_timestamp_dt")
+    start_time = data["prediction_timestamp_dt"].min()
+
+    data["minutes_from_start"] = (
+        data["prediction_timestamp_dt"] - start_time
+    ).dt.total_seconds() / 60
+
+    X = data[["minutes_from_start"]].to_numpy()
+    y = data[value_column].to_numpy()
+
+    if not np.isfinite(X).all() or not np.isfinite(y).all():
+        return None
+
+    model = LinearRegression()
+    model.fit(X, y)
+
+    last_minute = data["minutes_from_start"].max()
+    future_minute = last_minute + minutes_ahead
+
+    prediction = model.predict(np.array([[future_minute]]))[0]
+
+    return round(float(prediction), 2)
 
 
 def create_pdf_report(export_df, selected_sensor):
@@ -524,6 +587,95 @@ if filtered_history:
         )
 else:
     st.info("Für die historische Analyse sind noch keine Messwerte vorhanden.")
+
+st.subheader("Machine-Learning-Vorhersage")
+
+prediction_minutes = 30
+
+if history_error:
+    st.info("Vorhersage nicht verfügbar, weil keine Historie geladen werden konnte.")
+elif sensor_df.empty:
+    st.info("Noch nicht genug Messwerte für eine Vorhersage vorhanden.")
+elif selected_sensor and selected_sensor.lower().startswith("bme280"):
+    predicted_temp = predict_future_value(
+        sensor_df,
+        "temperature_c",
+        minutes_ahead=prediction_minutes,
+    )
+    predicted_humidity = predict_future_value(
+        sensor_df,
+        "humidity_percent",
+        minutes_ahead=prediction_minutes,
+    )
+    predicted_pressure = predict_future_value(
+        sensor_df,
+        "pressure_hpa",
+        minutes_ahead=prediction_minutes,
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        if predicted_temp is not None:
+            st.metric(
+                f"Temperatur in {prediction_minutes} Min.",
+                f"{predicted_temp:.2f} °C",
+            )
+        else:
+            st.info("Nicht genug Temperaturdaten für Vorhersage.")
+
+    with col2:
+        if predicted_humidity is not None:
+            st.metric(
+                f"Luftfeuchtigkeit in {prediction_minutes} Min.",
+                f"{predicted_humidity:.2f} %",
+            )
+        else:
+            st.info("Nicht genug Luftfeuchtigkeitsdaten für Vorhersage.")
+
+    with col3:
+        if predicted_pressure is not None:
+            st.metric(
+                f"Luftdruck in {prediction_minutes} Min.",
+                f"{predicted_pressure:.2f} hPa",
+            )
+        else:
+            st.info("Nicht genug Luftdruckdaten für Vorhersage.")
+
+    if predicted_temp is not None and predicted_temp > 30:
+        st.warning(
+            f"ML-Warnung: Temperatur könnte in {prediction_minutes} Minuten "
+            f"{predicted_temp:.2f} °C erreichen."
+        )
+
+    if predicted_humidity is not None and predicted_humidity > 70:
+        st.warning(
+            f"ML-Warnung: Luftfeuchtigkeit könnte in {prediction_minutes} Minuten "
+            f"{predicted_humidity:.2f} % erreichen."
+        )
+
+    if predicted_pressure is not None and predicted_pressure > 1030:
+        st.warning(
+            f"ML-Warnung: Luftdruck könnte in {prediction_minutes} Minuten "
+            f"{predicted_pressure:.2f} hPa erreichen."
+        )
+
+elif selected_sensor and selected_sensor.lower().startswith("mq2"):
+    predicted_gas = predict_future_value(
+        sensor_df,
+        "gas_value",
+        minutes_ahead=prediction_minutes,
+    )
+
+    if predicted_gas is not None:
+        st.metric(
+            f"Gaswert in {prediction_minutes} Min.",
+            f"{predicted_gas:.2f} ADC",
+        )
+    else:
+        st.info("Nicht genug Gaswerte für Vorhersage.")
+else:
+    st.info("Für diesen Sensortyp ist keine Vorhersage verfügbar.")
 
 st.subheader("Verlauf")
 if history_error:

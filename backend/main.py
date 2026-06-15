@@ -36,8 +36,8 @@ MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_TOPIC = os.getenv("MQTT_TOPIC", "sensors/data")
 MQTT_KEEPALIVE = int(os.getenv("MQTT_KEEPALIVE", "60"))
 MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "iot-dashboard-backend")
-MQTT_USERNAME = os.getenv("MQTT_USERNAME")
-MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
+MQTT_USERNAME = os.getenv("MQTT_BACKEND_USERNAME") or os.getenv("MQTT_USERNAME")
+MQTT_PASSWORD = os.getenv("MQTT_BACKEND_PASSWORD") or os.getenv("MQTT_PASSWORD")
 MQTT_TLS_ENV = os.getenv("MQTT_TLS", "").strip().lower()
 MQTT_TLS = (
     MQTT_TLS_ENV in {"1", "true", "yes", "on"}
