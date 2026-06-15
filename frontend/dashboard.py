@@ -590,7 +590,7 @@ else:
 
 st.subheader("Machine-Learning-Vorhersage")
 
-prediction_minutes = 30
+prediction_minutes = 60
 
 if history_error:
     st.info("Vorhersage nicht verfügbar, weil keine Historie geladen werden konnte.")
