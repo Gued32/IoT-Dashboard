@@ -4,9 +4,11 @@ import logging
 import os
 import ssl
 import sqlite3
+import smtplib
 from contextlib import contextmanager
+from email.message import EmailMessage
 from pathlib import Path
-from typing import Generator, Optional
+from typing import Dict, Generator, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -72,6 +74,56 @@ class SensorData(BaseModel):
     gas_value: Optional[int] = None
     smoke_warning: Optional[bool] = None
     email_sent: bool = False
+
+
+class MLAlertEmailRequest(BaseModel):
+    sensor_id: str
+    sensor_name: str
+    prediction_minutes: int
+    warnings: List[str]
+    current_values: Dict[str, Optional[float]]
+    predicted_values: Dict[str, Optional[float]]
+
+
+def send_ml_alert_email_message(subject: str, body: str) -> bool:
+    email_sender = (
+        os.getenv("EMAIL_SENDER")
+        or os.getenv("EMAIL_USER")
+        or os.getenv("EMAIL_ADDRESS")
+    )
+    email_password = (
+        os.getenv("EMAIL_PASSWORD")
+        or os.getenv("EMAIL_APP_PASSWORD")
+    )
+    email_receiver = (
+        os.getenv("EMAIL_RECEIVER")
+        or os.getenv("EMAIL_TO")
+    )
+    smtp_server = os.getenv("EMAIL_SMTP_SERVER", "smtp.gmail.com")
+    smtp_port = int(os.getenv("EMAIL_SMTP_PORT", "587"))
+
+    if not email_sender or not email_password or not email_receiver:
+        print("ML email skipped: missing EMAIL environment variables")
+        return False
+
+    try:
+        msg = EmailMessage()
+        msg["From"] = email_sender
+        msg["To"] = email_receiver
+        msg["Subject"] = subject
+        msg.set_content(body)
+
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(email_sender, email_password)
+            server.send_message(msg)
+
+        print("ML prediction alert email sent successfully")
+        return True
+
+    except Exception as e:
+        print(f"ML prediction email error: {e}")
+        return False
 
 
 def init_db() -> None:
@@ -375,6 +427,42 @@ def on_shutdown() -> None:
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@app.post("/ml-alert-email")
+def send_ml_alert_email(alert: MLAlertEmailRequest) -> dict:
+    warnings_text = "\n".join([f"- {warning}" for warning in alert.warnings])
+    current_values = alert.current_values
+    predicted_values = alert.predicted_values
+
+    body = f"""
+IoT Dashboard ML-Warnung: Vorhersage-Grenzwert überschritten
+
+Sensortyp: {alert.sensor_name}
+Vorhersagezeitraum: in {alert.prediction_minutes} Minuten
+
+Aktuelle Messwerte:
+Temperatur: {current_values.get("temperature_c")} °C
+Luftfeuchtigkeit: {current_values.get("humidity_percent")} %
+Luftdruck: {current_values.get("pressure_hpa")} hPa
+Gaswert: {current_values.get("gas_value")}
+
+ML-Vorhersage:
+Temperatur in {alert.prediction_minutes} Minuten: {predicted_values.get("temperature_c")} °C
+Luftfeuchtigkeit in {alert.prediction_minutes} Minuten: {predicted_values.get("humidity_percent")} %
+Luftdruck in {alert.prediction_minutes} Minuten: {predicted_values.get("pressure_hpa")} hPa
+Gaswert in {alert.prediction_minutes} Minuten: {predicted_values.get("gas_value")}
+
+Ausgelöste ML-Warnungen:
+{warnings_text}
+"""
+    subject = "IoT Dashboard ML-Warnung: Vorhersage-Grenzwert überschritten"
+    email_sent = send_ml_alert_email_message(subject, body)
+
+    return {
+        "email_sent": email_sent,
+        "message": "ML alert email sent" if email_sent else "ML alert email not sent",
+    }
 
 
 @app.get("/sensor-data", response_model=SensorData)

@@ -7,6 +7,8 @@ import pandas as pd
 import plotly.express as px
 import json
 import os
+import requests
+import time
 from io import BytesIO
 from pathlib import Path
 from statistics import mean
@@ -20,6 +22,12 @@ from sklearn.linear_model import LinearRegression
 
 
 default_backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+PREDICTION_MINUTES = 60
+TEMP_LIMIT = 30
+HUMIDITY_LIMIT = 70
+PRESSURE_LIMIT = 1030
+GAS_LIMIT = 1800
+ML_EMAIL_COOLDOWN_SECONDS = 3600
 
 
 def image_to_base64(image_path):
@@ -64,6 +72,41 @@ def fetch_json(url: str):
         return None, "Zeitüberschreitung bei der Anfrage."
     except json.JSONDecodeError:
         return None, "Ungültige JSON-Antwort vom Backend."
+
+
+def send_ml_alert_email(
+    backend_url,
+    sensor_id,
+    sensor_name,
+    prediction_minutes,
+    warnings,
+    current_values,
+    predicted_values,
+):
+    try:
+        payload = {
+            "sensor_id": sensor_id,
+            "sensor_name": sensor_name,
+            "prediction_minutes": prediction_minutes,
+            "warnings": warnings,
+            "current_values": current_values,
+            "predicted_values": predicted_values,
+        }
+
+        response = requests.post(
+            f"{backend_url}/ml-alert-email",
+            json=payload,
+            timeout=10,
+        )
+
+        if response.status_code == 200:
+            return response.json().get("email_sent", False)
+
+        return False
+
+    except Exception as e:
+        print(f"ML alert email request failed: {e}")
+        return False
 
 
 def format_sensor_name(sensor_id):
@@ -470,10 +513,6 @@ else:
             if latest["pressure_hpa"] is not None else "-"
         )
 
-        TEMP_LIMIT = 30
-        HUMIDITY_LIMIT = 70
-        PRESSURE_HIGH_LIMIT = 1030
-
         if latest.get("temperature_c") is not None and latest["temperature_c"] > TEMP_LIMIT:
             warning_text = f"Warnung: Hohe Temperatur erkannt ({latest['temperature_c']:.2f} °C)."
             email_alert_warnings.append(warning_text)
@@ -485,7 +524,7 @@ else:
         if latest.get("pressure_hpa") is not None and latest["pressure_hpa"] < 980:
             warning_text = "Warnung: Niedriger Luftdruck erkannt"
             st.warning(warning_text)
-        if latest.get("pressure_hpa") is not None and latest["pressure_hpa"] > PRESSURE_HIGH_LIMIT:
+        if latest.get("pressure_hpa") is not None and latest["pressure_hpa"] > PRESSURE_LIMIT:
             warning_text = f"Warnung: Hoher Luftdruck erkannt ({latest['pressure_hpa']:.2f} hPa)."
             email_alert_warnings.append(warning_text)
             st.warning(warning_text)
@@ -590,92 +629,203 @@ else:
 
 st.subheader("Machine-Learning-Vorhersage")
 
-prediction_minutes = 60
+prediction_minutes = PREDICTION_MINUTES
+selected_sensor_id = selected_sensor or ""
+selected_sensor_name = (
+    format_sensor_name(selected_sensor_id) if selected_sensor_id else "Sensor"
+)
 
 if history_error:
     st.info("Vorhersage nicht verfügbar, weil keine Historie geladen werden konnte.")
 elif sensor_df.empty:
     st.info("Noch nicht genug Messwerte für eine Vorhersage vorhanden.")
-elif selected_sensor and selected_sensor.lower().startswith("bme280"):
-    predicted_temp = predict_future_value(
-        sensor_df,
-        "temperature_c",
-        minutes_ahead=prediction_minutes,
-    )
-    predicted_humidity = predict_future_value(
-        sensor_df,
-        "humidity_percent",
-        minutes_ahead=prediction_minutes,
-    )
-    predicted_pressure = predict_future_value(
-        sensor_df,
-        "pressure_hpa",
-        minutes_ahead=prediction_minutes,
-    )
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        if predicted_temp is not None:
-            st.metric(
-                f"Temperatur in {prediction_minutes} Min.",
-                f"{predicted_temp:.2f} °C",
-            )
-        else:
-            st.info("Nicht genug Temperaturdaten für Vorhersage.")
-
-    with col2:
-        if predicted_humidity is not None:
-            st.metric(
-                f"Luftfeuchtigkeit in {prediction_minutes} Min.",
-                f"{predicted_humidity:.2f} %",
-            )
-        else:
-            st.info("Nicht genug Luftfeuchtigkeitsdaten für Vorhersage.")
-
-    with col3:
-        if predicted_pressure is not None:
-            st.metric(
-                f"Luftdruck in {prediction_minutes} Min.",
-                f"{predicted_pressure:.2f} hPa",
-            )
-        else:
-            st.info("Nicht genug Luftdruckdaten für Vorhersage.")
-
-    if predicted_temp is not None and predicted_temp > 30:
-        st.warning(
-            f"ML-Warnung: Temperatur könnte in {prediction_minutes} Minuten "
-            f"{predicted_temp:.2f} °C erreichen."
-        )
-
-    if predicted_humidity is not None and predicted_humidity > 70:
-        st.warning(
-            f"ML-Warnung: Luftfeuchtigkeit könnte in {prediction_minutes} Minuten "
-            f"{predicted_humidity:.2f} % erreichen."
-        )
-
-    if predicted_pressure is not None and predicted_pressure > 1030:
-        st.warning(
-            f"ML-Warnung: Luftdruck könnte in {prediction_minutes} Minuten "
-            f"{predicted_pressure:.2f} hPa erreichen."
-        )
-
-elif selected_sensor and selected_sensor.lower().startswith("mq2"):
-    predicted_gas = predict_future_value(
-        sensor_df,
-        "gas_value",
-        minutes_ahead=prediction_minutes,
-    )
-
-    if predicted_gas is not None:
-        st.metric(
-            f"Gaswert in {prediction_minutes} Min.",
-            f"{predicted_gas:.2f} ADC",
-        )
-    else:
-        st.info("Nicht genug Gaswerte für Vorhersage.")
 else:
-    st.info("Für diesen Sensortyp ist keine Vorhersage verfügbar.")
+    latest_sort_column = "timestamp_dt" if "timestamp_dt" in sensor_df.columns else "timestamp"
+    latest_row = sensor_df.sort_values(latest_sort_column).iloc[-1].to_dict()
+    current_values = {
+        "temperature_c": latest_row.get("temperature_c"),
+        "humidity_percent": latest_row.get("humidity_percent"),
+        "pressure_hpa": latest_row.get("pressure_hpa"),
+        "gas_value": latest_row.get("gas_value"),
+    }
+    ml_warnings = []
+    ml_warning_codes = []
+    predicted_values = {}
+
+    if selected_sensor_id.lower().startswith("bme280"):
+        predicted_temp = predict_future_value(
+            sensor_df,
+            "temperature_c",
+            minutes_ahead=prediction_minutes,
+        )
+        predicted_humidity = predict_future_value(
+            sensor_df,
+            "humidity_percent",
+            minutes_ahead=prediction_minutes,
+        )
+        predicted_pressure = predict_future_value(
+            sensor_df,
+            "pressure_hpa",
+            minutes_ahead=prediction_minutes,
+        )
+        predicted_values = {
+            "temperature_c": predicted_temp,
+            "humidity_percent": predicted_humidity,
+            "pressure_hpa": predicted_pressure,
+            "gas_value": None,
+        }
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            if predicted_temp is not None:
+                st.metric(
+                    f"Temperatur in {prediction_minutes} Min.",
+                    f"{predicted_temp:.2f} °C",
+                )
+            else:
+                st.info("Nicht genug Temperaturdaten für Vorhersage.")
+
+        with col2:
+            if predicted_humidity is not None:
+                st.metric(
+                    f"Luftfeuchtigkeit in {prediction_minutes} Min.",
+                    f"{predicted_humidity:.2f} %",
+                )
+            else:
+                st.info("Nicht genug Luftfeuchtigkeitsdaten für Vorhersage.")
+
+        with col3:
+            if predicted_pressure is not None:
+                st.metric(
+                    f"Luftdruck in {prediction_minutes} Min.",
+                    f"{predicted_pressure:.2f} hPa",
+                )
+            else:
+                st.info("Nicht genug Luftdruckdaten für Vorhersage.")
+
+        if predicted_temp is not None and predicted_temp > TEMP_LIMIT:
+            ml_warnings.append(
+                f"Temperatur-Vorhersage zu hoch: {predicted_temp:.2f} °C in 1 Stunde"
+            )
+            ml_warning_codes.append("temperature")
+
+        if predicted_humidity is not None and predicted_humidity > HUMIDITY_LIMIT:
+            ml_warnings.append(
+                f"Luftfeuchtigkeit-Vorhersage zu hoch: "
+                f"{predicted_humidity:.2f} % in 1 Stunde"
+            )
+            ml_warning_codes.append("humidity")
+
+        if predicted_pressure is not None and predicted_pressure > PRESSURE_LIMIT:
+            ml_warnings.append(
+                f"Luftdruck-Vorhersage zu hoch: "
+                f"{predicted_pressure:.2f} hPa in 1 Stunde"
+            )
+            ml_warning_codes.append("pressure")
+
+    elif selected_sensor_id.lower().startswith("mq2"):
+        predicted_gas = predict_future_value(
+            sensor_df,
+            "gas_value",
+            minutes_ahead=prediction_minutes,
+        )
+        predicted_values = {
+            "temperature_c": None,
+            "humidity_percent": None,
+            "pressure_hpa": None,
+            "gas_value": predicted_gas,
+        }
+
+        if predicted_gas is not None:
+            st.metric(
+                f"Gaswert in {prediction_minutes} Min.",
+                f"{predicted_gas:.2f} ADC",
+            )
+            if predicted_gas > GAS_LIMIT:
+                ml_warnings.append(
+                    f"Gaswert-Vorhersage zu hoch: {predicted_gas:.2f} ADC in 1 Stunde"
+                )
+                ml_warning_codes.append("gas")
+        else:
+            st.info("Nicht genug Gaswerte für Vorhersage.")
+
+    else:
+        st.info("Für diesen Sensortyp ist keine Vorhersage verfügbar.")
+
+    if "last_ml_alert_email_key" not in st.session_state:
+        st.session_state.last_ml_alert_email_key = None
+
+    if "last_ml_alert_email_time" not in st.session_state:
+        st.session_state.last_ml_alert_email_time = 0
+
+    if "ml_alert_email_sent_success" not in st.session_state:
+        st.session_state.ml_alert_email_sent_success = False
+
+    if ml_warnings:
+        st.warning("ML-Warnung erkannt: " + " | ".join(ml_warnings))
+
+        ml_email_key = (
+            f"{selected_sensor_id}-"
+            f"{PREDICTION_MINUTES}-"
+            f"{'-'.join(ml_warning_codes)}"
+        )
+        current_time = time.time()
+        should_send_ml_email = (
+            st.session_state.last_ml_alert_email_key != ml_email_key
+            or current_time - st.session_state.last_ml_alert_email_time
+            > ML_EMAIL_COOLDOWN_SECONDS
+        )
+
+        if should_send_ml_email:
+            email_sent = send_ml_alert_email(
+                backend_url,
+                selected_sensor_id,
+                selected_sensor_name,
+                PREDICTION_MINUTES,
+                ml_warnings,
+                current_values,
+                predicted_values,
+            )
+
+            if email_sent:
+                st.session_state.ml_alert_email_sent_success = True
+                st.session_state.last_ml_alert_email_key = ml_email_key
+                st.session_state.last_ml_alert_email_time = current_time
+            else:
+                st.session_state.ml_alert_email_sent_success = False
+
+        if st.session_state.ml_alert_email_sent_success:
+            st.markdown(
+                """
+                <div style="
+                    background-color: #e8f5e9;
+                    padding: 14px 18px;
+                    border-radius: 8px;
+                    color: #1b5e20;
+                    font-size: 17px;
+                    font-weight: 600;
+                ">
+                    Warnung erkannt – E-Mail-Warnung wurde erfolgreich gesendet.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        if not should_send_ml_email:
+            remaining_minutes = int(
+                (
+                    ML_EMAIL_COOLDOWN_SECONDS
+                    - (current_time - st.session_state.last_ml_alert_email_time)
+                )
+                // 60
+            ) + 1
+            st.info(
+                f"ML-E-Mail-Cooldown aktiv. Nächste E-Mail in ca. "
+                f"{remaining_minutes} Min."
+            )
+    else:
+        st.session_state.ml_alert_email_sent_success = False
 
 st.subheader("Verlauf")
 if history_error:
