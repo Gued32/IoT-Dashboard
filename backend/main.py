@@ -427,6 +427,17 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+ML_EMAIL_SENSOR_NAMES = {
+    "bme280_1": "BME280_1 - Temperatur/Luftfeuchtigkeit/Luftdruck-Sensor (Sensor_1)",
+    "bme280_2": "BME280_2 - Temperatur/Luftfeuchtigkeit/Luftdruck-Sensor (Sensor_2)",
+    "mq2_1": "MQ2_1 - Gas-/Rauchüberwachung-Sensor (Sensor_3)",
+}
+
+
+def get_ml_email_sensor_name(sensor_id: str) -> str:
+    return ML_EMAIL_SENSOR_NAMES.get(sensor_id, sensor_id)
+
+
 @app.post("/ml-alert-email")
 def send_ml_alert_email(alert: MLAlertEmailRequest) -> dict:
     warnings_text = "\n".join([f"- {warning}" for warning in alert.warnings])
@@ -436,7 +447,7 @@ def send_ml_alert_email(alert: MLAlertEmailRequest) -> dict:
     body = f"""
 IoT Dashboard ML-Warnung: Vorhersage-Grenzwert überschritten
 
-Sensortyp: {get_sensor_display_name(alert.sensor_id)}
+Sensortyp: {get_ml_email_sensor_name(alert.sensor_id)}
 Vorhersagezeitraum: in {alert.prediction_minutes} Minuten
 
 Aktuelle Messwerte:
