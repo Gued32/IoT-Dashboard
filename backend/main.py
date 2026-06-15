@@ -42,7 +42,7 @@ MQTT_TLS_ENV = os.getenv("MQTT_TLS", "").strip().lower()
 MQTT_TLS = (
     MQTT_TLS_ENV in {"1", "true", "yes", "on"}
     if MQTT_TLS_ENV
-    else MQTT_PORT == 8883 or bool(MQTT_USERNAME)
+    else MQTT_PORT == 8883
 )
 
 TEMP_LIMIT = 30
@@ -334,7 +334,7 @@ def start_mqtt_listener() -> mqtt.Client | None:
     client.on_connect = on_mqtt_connect
     client.on_message = on_mqtt_message
 
-    if MQTT_USERNAME:
+    if MQTT_USERNAME and MQTT_PASSWORD:
         client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
 
     if MQTT_TLS:

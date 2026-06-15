@@ -18,7 +18,7 @@ MQTT_TLS_ENV = os.getenv("MQTT_TLS", "").strip().lower()
 MQTT_TLS = (
     MQTT_TLS_ENV in {"1", "true", "yes", "on"}
     if MQTT_TLS_ENV
-    else MQTT_PORT == 8883 or bool(MQTT_USERNAME)
+    else MQTT_PORT == 8883
 )
 
 PUBLISH_INTERVAL = 5  # Sekunden
@@ -49,7 +49,7 @@ def generate_mq2_data(sensor_id: str) -> dict:
 
 def main():
     client = mqtt.Client()
-    if MQTT_USERNAME:
+    if MQTT_USERNAME and MQTT_PASSWORD:
         client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
 
     if MQTT_TLS:
@@ -58,6 +58,7 @@ def main():
     while True:
         try:
             client.connect(MQTT_BROKER, MQTT_PORT, MQTT_KEEPALIVE)
+            client.loop_start()
             print("Connected to MQTT broker.", flush=True)
             break
         except Exception as e:
