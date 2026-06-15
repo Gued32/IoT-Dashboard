@@ -18,17 +18,15 @@ import paho.mqtt.client as mqtt
 from backend.email_alert import send_email_alert
 
 
-def format_email_sensor_type(sensor_id: str) -> str:
-    sensor_types = {
-        "bme280_1": "BME280 1 - Temperatur/Luftfeuchtigkeit/Luftdruck-Sensor (Sensor_1)",
-        "bme280_2": "BME280 2 - Temperatur/Luftfeuchtigkeit/Luftdruck-Sensor (Sensor_2)",
-        "mq2_1": "MQ2 1 - Gas-/Rauchüberwachung-Sensor (Sensor_3)",
-    }
+SENSOR_DISPLAY_NAMES = {
+    "bme280_1": "BME280_1 - Temperatur/Luftfeuchtigkeit/Luftdruck-Sensor",
+    "bme280_2": "BME280_2 - Temperatur/Luftfeuchtigkeit/Luftdruck-Sensor",
+    "mq2_1": "MQ2_1 - Gas-/Rauchüberwachung-Sensor",
+}
 
-    return sensor_types.get(
-        sensor_id,
-        sensor_id.upper().replace("_", " "),
-    )
+
+def get_sensor_display_name(sensor_id: str) -> str:
+    return SENSOR_DISPLAY_NAMES.get(sensor_id, sensor_id)
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -347,7 +345,7 @@ def on_mqtt_message(client: mqtt.Client, userdata: object, msg: mqtt.MQTTMessage
             body = f"""
 IoT Dashboard Warnung: Grenzwert überschritten
 
-Sensortyp: {format_email_sensor_type(sensor_data.sensor_id)}
+Sensortyp: {get_sensor_display_name(sensor_data.sensor_id)}
 Zeit: {sensor_data.timestamp}
 
 Messwerte:
@@ -438,7 +436,7 @@ def send_ml_alert_email(alert: MLAlertEmailRequest) -> dict:
     body = f"""
 IoT Dashboard ML-Warnung: Vorhersage-Grenzwert überschritten
 
-Sensortyp: {alert.sensor_name}
+Sensortyp: {get_sensor_display_name(alert.sensor_id)}
 Vorhersagezeitraum: in {alert.prediction_minutes} Minuten
 
 Aktuelle Messwerte:

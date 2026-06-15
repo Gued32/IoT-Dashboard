@@ -28,6 +28,11 @@ HUMIDITY_LIMIT = 70
 PRESSURE_LIMIT = 1030
 GAS_LIMIT = 1800
 ML_EMAIL_COOLDOWN_SECONDS = 3600
+SENSOR_NAMES = {
+    "bme280_1": "BME280_1 - Temperatur/Luftfeuchtigkeit/Luftdruck-Sensor",
+    "bme280_2": "BME280_2 - Temperatur/Luftfeuchtigkeit/Luftdruck-Sensor",
+    "mq2_1": "MQ2_1 - Gas-/Rauchüberwachung-Sensor",
+}
 
 
 def image_to_base64(image_path):
@@ -119,13 +124,7 @@ def send_ml_alert_email(
 
 
 def format_sensor_name(sensor_id):
-    sensor_names = {
-        "bme280_1": "BME280 1 - Temperatur/Luftfeuchtigkeit/Luftdruck-Sensor",
-        "bme280_2": "BME280 2 - Temperatur/Luftfeuchtigkeit/Luftdruck-Sensor",
-        "mq2_1": "MQ2 1 - Gas-/Rauchüberwachung-Sensor",
-    }
-
-    return sensor_names.get(
+    return SENSOR_NAMES.get(
         sensor_id,
         sensor_id.upper().replace("_", " ")
     )
@@ -641,7 +640,9 @@ st.subheader("Machine-Learning-Vorhersage")
 prediction_minutes = PREDICTION_MINUTES
 selected_sensor_id = selected_sensor or ""
 selected_sensor_name = (
-    format_sensor_name(selected_sensor_id) if selected_sensor_id else "Sensor"
+    SENSOR_NAMES.get(selected_sensor_id, selected_sensor_id)
+    if selected_sensor_id
+    else "Sensor"
 )
 
 if history_error:
