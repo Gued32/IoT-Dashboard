@@ -18,8 +18,8 @@ services:
       MQTT_USERNAME: ${MQTT_BACKEND_USERNAME}
       MQTT_PASSWORD: ${MQTT_BACKEND_PASSWORD}
       MQTT_TLS: ${MQTT_TLS:-}
-      RESEND_API_KEY: ${RESEND_API_KEY:-}
-      EMAIL_FROM: ${EMAIL_FROM:-IoT Dashboard <onboarding@resend.dev>}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM}
       EMAIL_SENDER: ${EMAIL_SENDER}
       EMAIL_PASSWORD: ${EMAIL_PASSWORD}
       EMAIL_RECEIVER: ${EMAIL_RECEIVER}
@@ -46,4 +46,4 @@ services:
     depends_on:
       - backend
     environment:
-      - BACKEND_URL=http://backend:8000
+      BACKEND_URL: ${BACKEND_URL}

@@ -91,7 +91,6 @@ def fetch_json(url: str):
 def send_ml_alert_email(
     backend_url,
     sensor_id,
-    sensor_name,
     prediction_minutes,
     warnings,
     current_values,
@@ -100,7 +99,6 @@ def send_ml_alert_email(
     try:
         payload = {
             "sensor_id": sensor_id,
-            "sensor_name": sensor_name,
             "prediction_minutes": prediction_minutes,
             "warnings": warnings,
             "current_values": current_values,
@@ -110,16 +108,17 @@ def send_ml_alert_email(
         response = requests.post(
             f"{backend_url}/ml-alert-email",
             json=payload,
-            timeout=10,
+            timeout=15,
         )
 
         if response.status_code == 200:
             return response.json().get("email_sent", False)
 
+        print(f"ML email request failed: {response.status_code} - {response.text}")
         return False
 
     except Exception as e:
-        print(f"ML alert email request failed: {e}")
+        print(f"ML alert email request exception: {e}")
         return False
 
 
@@ -639,11 +638,6 @@ st.subheader("Machine-Learning-Vorhersage")
 
 prediction_minutes = PREDICTION_MINUTES
 selected_sensor_id = selected_sensor or ""
-selected_sensor_name = (
-    SENSOR_NAMES.get(selected_sensor_id, selected_sensor_id)
-    if selected_sensor_id
-    else "Sensor"
-)
 
 if history_error:
     st.info("Vorhersage nicht verfügbar, weil keine Historie geladen werden konnte.")
@@ -794,7 +788,6 @@ else:
             email_sent = send_ml_alert_email(
                 backend_url,
                 selected_sensor_id,
-                selected_sensor_name,
                 PREDICTION_MINUTES,
                 ml_warnings,
                 current_values,

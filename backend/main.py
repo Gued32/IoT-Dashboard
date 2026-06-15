@@ -75,7 +75,6 @@ class SensorData(BaseModel):
 
 class MLAlertEmailRequest(BaseModel):
     sensor_id: str
-    sensor_name: str
     prediction_minutes: int
     warnings: List[str]
     current_values: Dict[str, Optional[float]]
@@ -88,7 +87,7 @@ def send_email_via_resend(subject: str, body: str) -> bool:
     email_receiver = os.getenv("EMAIL_RECEIVER")
 
     if not resend_api_key or not email_receiver:
-        print("Resend email skipped: missing RESEND_API_KEY or EMAIL_RECEIVER")
+        print("Email skipped: missing RESEND_API_KEY or EMAIL_RECEIVER")
         return False
 
     try:
@@ -108,7 +107,7 @@ def send_email_via_resend(subject: str, body: str) -> bool:
         )
 
         if response.status_code in [200, 201]:
-            print("Email sent successfully via Resend")
+            print("ML prediction alert email sent successfully")
             return True
 
         print(f"Resend email error: {response.status_code} - {response.text}")
