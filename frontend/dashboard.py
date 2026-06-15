@@ -26,7 +26,7 @@ def image_to_base64(image_path):
 
 
 def show_email_success_message():
-    email_icon_path = Path(__file__).resolve().parent / "assets" / "email_icon.png"
+    email_icon_path = Path(__file__).resolve().parent / "assets" / "email_red_white.png"
     email_icon_base64 = image_to_base64(email_icon_path)
 
     st.markdown(
@@ -39,10 +39,10 @@ def show_email_success_message():
             font-size: 18px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
         ">
             <img src="data:image/png;base64,{email_icon_base64}"
-                 style="width: 30px; height: 30px; object-fit: contain;">
+                 style="width: 34px; height: 34px; object-fit: contain;">
             <span>Warnung erkannt – E-Mail-Warnung wurde erfolgreich gesendet.</span>
         </div>
         """,
