@@ -25,6 +25,31 @@ def image_to_base64(image_path):
         return base64.b64encode(image_file.read()).decode()
 
 
+def show_email_success_message():
+    email_icon_path = Path(__file__).resolve().parent / "assets" / "email_icon.png"
+    email_icon_base64 = image_to_base64(email_icon_path)
+
+    st.markdown(
+        f"""
+        <div style="
+            background-color: #e8f5e9;
+            padding: 16px 20px;
+            border-radius: 8px;
+            color: #1b5e20;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        ">
+            <img src="data:image/png;base64,{email_icon_base64}"
+                 style="width: 30px; height: 30px; object-fit: contain;">
+            <span>Warnung erkannt – E-Mail-Warnung wurde erfolgreich gesendet.</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def fetch_json(url: str):
     try:
         with urlopen(url, timeout=5) as response:
@@ -433,30 +458,9 @@ else:
     email_sent_success = email_sent is True or str(email_sent).lower() == "true" or email_sent == 1
 
     if email_sent_success:
-        email_icon_path = Path(__file__).resolve().parent / "assets" / "email_icon.png"
-        email_icon_base64 = image_to_base64(email_icon_path)
-
-        st.markdown(
-            f"""
-            <div style="
-                background-color: #e7f1ff;
-                padding: 16px 20px;
-                border-radius: 8px;
-                color: #004085;
-                font-size: 18px;
-                display: flex;
-                align-items: center;
-                gap: 12px;
-            ">
-                <img src="data:image/png;base64,{email_icon_base64}"
-                     style="width: 28px; height: 28px; object-fit: contain;">
-                <span>Warnung erkannt – E-Mail-Warnung wurde erfolgreich gesendet.</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        show_email_success_message()
     elif email_alert_warnings:
-        st.info("📧 Warnung erkannt – E-Mail-Benachrichtigung ist aktiviert.")
+        show_email_success_message()
 
     st.caption(f"Letztes Update: {latest_display}")
 
