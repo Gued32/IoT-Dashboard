@@ -36,7 +36,14 @@ def image_to_base64(image_path):
 
 
 def show_email_success_message():
-    email_icon_path = Path(__file__).resolve().parent / "assets" / "email_red_white.png"
+    email_icon_path = Path("frontend/assets/email_red_white.png")
+
+    if not email_icon_path.exists():
+        email_icon_path = Path("assets/email_red_white.png")
+
+    if not email_icon_path.exists():
+        email_icon_path = Path(__file__).resolve().parent / "assets" / "email_red_white.png"
+
     email_icon_base64 = image_to_base64(email_icon_path)
 
     st.markdown(
@@ -50,6 +57,8 @@ def show_email_success_message():
             display: flex;
             align-items: center;
             gap: 14px;
+            margin-top: 10px;
+            margin-bottom: 10px;
         ">
             <img src="data:image/png;base64,{email_icon_base64}"
                  style="width: 34px; height: 34px; object-fit: contain;">
@@ -762,6 +771,9 @@ else:
     if "ml_alert_email_sent_success" not in st.session_state:
         st.session_state.ml_alert_email_sent_success = False
 
+    if "ml_alert_email_success_until" not in st.session_state:
+        st.session_state.ml_alert_email_success_until = 0
+
     if ml_warnings:
         st.warning("ML-Warnung erkannt: " + " | ".join(ml_warnings))
 
@@ -790,27 +802,17 @@ else:
 
             if email_sent:
                 st.session_state.ml_alert_email_sent_success = True
+                st.session_state.ml_alert_email_success_until = time.time() + 60
                 st.session_state.last_ml_alert_email_key = ml_email_key
                 st.session_state.last_ml_alert_email_time = current_time
             else:
                 st.session_state.ml_alert_email_sent_success = False
 
-        if st.session_state.ml_alert_email_sent_success:
-            st.markdown(
-                """
-                <div style="
-                    background-color: #e8f5e9;
-                    padding: 14px 18px;
-                    border-radius: 8px;
-                    color: #1b5e20;
-                    font-size: 17px;
-                    font-weight: 600;
-                ">
-                    Warnung erkannt – E-Mail-Warnung wurde erfolgreich gesendet.
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+        if (
+            st.session_state.get("ml_alert_email_sent_success", False)
+            and time.time() < st.session_state.get("ml_alert_email_success_until", 0)
+        ):
+            show_email_success_message()
 
         if not should_send_ml_email:
             remaining_minutes = int(
@@ -826,6 +828,7 @@ else:
             )
     else:
         st.session_state.ml_alert_email_sent_success = False
+        st.session_state.ml_alert_email_success_until = 0
 
 st.subheader("Verlauf")
 if history_error:
