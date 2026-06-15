@@ -4,9 +4,7 @@ import logging
 import os
 import ssl
 import sqlite3
-import smtplib
 from contextlib import contextmanager
-from email.message import EmailMessage
 from pathlib import Path
 from typing import Dict, Generator, List, Optional
 
@@ -15,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ValidationError
 
 import paho.mqtt.client as mqtt
+import requests
 from backend.email_alert import send_email_alert
 
 
@@ -83,44 +82,40 @@ class MLAlertEmailRequest(BaseModel):
     predicted_values: Dict[str, Optional[float]]
 
 
-def send_ml_alert_email_message(subject: str, body: str) -> bool:
-    email_sender = (
-        os.getenv("EMAIL_SENDER")
-        or os.getenv("EMAIL_USER")
-        or os.getenv("EMAIL_ADDRESS")
-    )
-    email_password = (
-        os.getenv("EMAIL_PASSWORD")
-        or os.getenv("EMAIL_APP_PASSWORD")
-    )
-    email_receiver = (
-        os.getenv("EMAIL_RECEIVER")
-        or os.getenv("EMAIL_TO")
-    )
-    smtp_server = os.getenv("EMAIL_SMTP_SERVER", "smtp.gmail.com")
-    smtp_port = int(os.getenv("EMAIL_SMTP_PORT", "587"))
+def send_email_via_resend(subject: str, body: str) -> bool:
+    resend_api_key = os.getenv("RESEND_API_KEY")
+    email_from = os.getenv("EMAIL_FROM", "IoT Dashboard <onboarding@resend.dev>")
+    email_receiver = os.getenv("EMAIL_RECEIVER")
 
-    if not email_sender or not email_password or not email_receiver:
-        print("ML email skipped: missing EMAIL environment variables")
+    if not resend_api_key or not email_receiver:
+        print("Resend email skipped: missing RESEND_API_KEY or EMAIL_RECEIVER")
         return False
 
     try:
-        msg = EmailMessage()
-        msg["From"] = email_sender
-        msg["To"] = email_receiver
-        msg["Subject"] = subject
-        msg.set_content(body)
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {resend_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": email_from,
+                "to": [email_receiver],
+                "subject": subject,
+                "text": body,
+            },
+            timeout=15,
+        )
 
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()
-            server.login(email_sender, email_password)
-            server.send_message(msg)
+        if response.status_code in [200, 201]:
+            print("Email sent successfully via Resend")
+            return True
 
-        print("ML prediction alert email sent successfully")
-        return True
+        print(f"Resend email error: {response.status_code} - {response.text}")
+        return False
 
     except Exception as e:
-        print(f"ML prediction email error: {e}")
+        print(f"Resend email exception: {e}")
         return False
 
 
@@ -466,7 +461,7 @@ Ausgelöste ML-Warnungen:
 {warnings_text}
 """
     subject = "IoT Dashboard ML-Warnung: Vorhersage-Grenzwert überschritten"
-    email_sent = send_ml_alert_email_message(subject, body)
+    email_sent = send_email_via_resend(subject, body)
 
     return {
         "email_sent": email_sent,
