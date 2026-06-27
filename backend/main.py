@@ -4,7 +4,7 @@ import logging
 import os
 import ssl
 import sqlite3
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from pathlib import Path
 from typing import Dict, Generator, List, Optional
 
@@ -14,7 +14,6 @@ from pydantic import BaseModel, ValidationError
 
 import paho.mqtt.client as mqtt
 import requests
-from backend.email_alert import send_email_alert
 
 
 SENSOR_DISPLAY_NAMES = {
@@ -120,7 +119,7 @@ def send_email_via_resend(subject: str, body: str) -> bool:
 
 def init_db() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(DB_PATH) as conn:
+    with closing(sqlite3.connect(DB_PATH)) as conn, conn:
         table_info = conn.execute("PRAGMA table_info(sensor_data)").fetchall()
         desired_columns = {
             "id",
@@ -261,38 +260,6 @@ def on_mqtt_message(client: mqtt.Client, userdata: object, msg: mqtt.MQTTMessage
         if sensor_data.smoke_warning is not None:
             smoke_warning_value = 1 if sensor_data.smoke_warning else 0
 
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            INSERT INTO sensor_data (
-                sensor_id,
-                sensor_type,
-                timestamp,
-                temperature_c,
-                humidity_percent,
-                pressure_hpa,
-                gas_value,
-                smoke_warning,
-                email_sent
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                sensor_data.sensor_id,
-                sensor_data.sensor_type,
-                sensor_data.timestamp,
-                sensor_data.temperature_c,
-                sensor_data.humidity_percent,
-                sensor_data.pressure_hpa,
-                sensor_data.gas_value,
-                smoke_warning_value,
-                0,
-            ),
-        )
-        inserted_row_id = cursor.lastrowid
-
         alerts = []
 
         if sensor_data.temperature_c is not None and sensor_data.temperature_c > TEMP_LIMIT:
@@ -353,18 +320,52 @@ Ausgelöste Warnungen:
 {chr(10).join("- " + alert for alert in alerts)}
 """
 
-            email_sent = send_email_alert(
+            email_sent = send_email_via_resend(
                 subject="IoT Dashboard Warnung: Grenzwert überschritten",
                 body=body,
             )
 
-        cursor.execute(
-            "UPDATE sensor_data SET email_sent = ? WHERE id = ?",
-            (1 if email_sent else 0, inserted_row_id),
-        )
-        conn.commit()
+        sensor_record = {
+            "sensor_id": sensor_data.sensor_id,
+            "sensor_type": sensor_data.sensor_type,
+            "timestamp": sensor_data.timestamp,
+            "temperature_c": sensor_data.temperature_c,
+            "humidity_percent": sensor_data.humidity_percent,
+            "pressure_hpa": sensor_data.pressure_hpa,
+            "gas_value": sensor_data.gas_value,
+            "smoke_warning": smoke_warning_value,
+            "email_sent": email_sent,
+        }
 
-        conn.close()
+        with db_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO sensor_data (
+                    sensor_id,
+                    sensor_type,
+                    timestamp,
+                    temperature_c,
+                    humidity_percent,
+                    pressure_hpa,
+                    gas_value,
+                    smoke_warning,
+                    email_sent
+                )
+                VALUES (
+                    :sensor_id,
+                    :sensor_type,
+                    :timestamp,
+                    :temperature_c,
+                    :humidity_percent,
+                    :pressure_hpa,
+                    :gas_value,
+                    :smoke_warning,
+                    :email_sent
+                )
+                """,
+                sensor_record,
+            )
+            conn.commit()
 
     except Exception as e:
         print(f"Failed to persist MQTT payload on topic '{topic}': {e}")
