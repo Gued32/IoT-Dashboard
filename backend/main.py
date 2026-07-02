@@ -230,18 +230,22 @@ def on_mqtt_connect(
     userdata: object,
     flags: mqtt.ConnectFlags,
     reason_code: mqtt.ReasonCode,
-    properties: mqtt.Properties | None,
+    properties: mqtt.Properties | None = None,
 ) -> None:
     del userdata, flags, properties
     if reason_code.value != 0:
-        logger.error("MQTT connection failed. reason_code=%s", reason_code)
+        print(f"MQTT connection failed. reason_code={reason_code}")
         return
+
+    print("MQTT connected successfully")
     client.subscribe(MQTT_TOPIC, qos=0)
-    logger.info("Subscribed to MQTT topic '%s'.", MQTT_TOPIC)
+    print(f"MQTT subscribed to {MQTT_TOPIC}")
 
 
 def on_mqtt_message(client: mqtt.Client, userdata: object, msg: mqtt.MQTTMessage) -> None:
     del client, userdata
+    print(f"MQTT message received: topic={msg.topic}, payload={msg.payload}")
+
     try:
         payload = json.loads(msg.payload.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
