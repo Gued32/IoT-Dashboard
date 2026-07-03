@@ -5,12 +5,13 @@ import os
 import ssl
 import sqlite3
 from contextlib import closing, contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Generator, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 import paho.mqtt.client as mqtt
 import requests
@@ -63,7 +64,7 @@ mqtt_client: mqtt.Client | None = None
 class SensorData(BaseModel):
     sensor_id: str
     sensor_type: str
-    timestamp: str
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     temperature_c: Optional[float] = None
     humidity_percent: Optional[float] = None
     pressure_hpa: Optional[float] = None
@@ -247,13 +248,16 @@ def on_mqtt_message(client: mqtt.Client, userdata: object, msg: mqtt.MQTTMessage
     print(f"MQTT message received: topic={msg.topic}, payload={msg.payload}")
 
     try:
-        payload = json.loads(msg.payload.decode("utf-8"))
+        payload = json.loads(msg.payload.decode())
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         logger.error("Invalid MQTT payload on topic '%s': %s", msg.topic, exc)
         return
 
+    if "timestamp" not in payload or payload["timestamp"] is None:
+        payload["timestamp"] = datetime.now(timezone.utc).isoformat()
+
     try:
-        sensor_data = SensorData.model_validate(payload)
+        sensor_data = SensorData(**payload)
     except ValidationError as exc:
         logger.error("Invalid MQTT payload on topic '%s': %s", msg.topic, exc)
         return
