@@ -1,61 +1,110 @@
-# **IoT Dashboard – Wichtige Projektschritte und Fehlerbehebung**
+# **IoT-Dashboard – Projektablauf, wichtige Schritte und Fehlerbehebung**
 
 ## **1. Projektziel**
 
-Dieses Projekt zeigt echte Sensordaten von einem ESP32 in einem Online-Dashboard an.
+Dieses Projekt implementiert ein verteiltes IoT-System zur Erfassung, Verarbeitung, Speicherung und Visualisierung von Sensordaten in Echtzeit.
 
-Verwendete Sensoren:
+Das System verwendet echte ESP32-Hardware mit mehreren Sensoren. Die Daten werden per MQTT übertragen, vom Backend über eine REST API bereitgestellt und im Online-Dashboard visualisiert.
 
-* BME280 Sensor 1 für Temperatur, Luftfeuchtigkeit und Luftdruck
-* BME280 Sensor 2 für Temperatur, Luftfeuchtigkeit und Luftdruck
-* MQ-2 Sensor für Gas-/Rauch-Erkennung
+Ziel ist es, zentrale Konzepte verteilter Systeme praktisch umzusetzen:
 
-Die Sensordaten werden per MQTT übertragen und im Dashboard visualisiert.
-
----
-
-## **2. Finale Architektur**
-
-Die finale Datenkette lautet:
-
-```text
-ESP32 Sensoren → HiveMQ Cloud → Railway Backend → Railway Frontend Dashboard
-```
-
-**Beschreibung:**
-
-* Der ESP32 liest die echten Sensorwerte.
-* Der ESP32 sendet die Daten per MQTT an HiveMQ Cloud.
-* Das Railway Backend abonniert die MQTT-Topics.
-* Das Backend speichert die Messwerte.
-* Das Railway Frontend zeigt die Daten im Dashboard an.
-
-**Wichtige URLs:**
-
-```text
-Frontend Dashboard:
-https://iot-dashboard-production-da48.up.railway.app
-
-Backend API:
-https://backend-production-4878.up.railway.app
-
-Sensordaten Endpoint:
-https://backend-production-4878.up.railway.app/sensordaten
-```
+* MQTT-Kommunikation
+* REST API
+* verteilte Komponenten
+* Echtzeitdaten
+* Cloud Deployment
+* Docker Deployment
+* Authentifizierung
+* historische Analyse
+* Machine-Learning-Vorhersage
 
 ---
 
-## **3. Hardware-Aufbau**
+## **2. Finale Systemarchitektur**
 
-### **ESP32**
+Die finale Architektur des Projekts lautet:
 
-Als Mikrocontroller wurde ein ESP32 DevKit verwendet.
+```text
+ESP32 mit echten Sensoren
+        ↓
+HiveMQ Cloud MQTT Broker
+        ↓
+Railway Backend
+        ↓
+REST API
+        ↓
+Railway Frontend Dashboard
+```
 
-### **BME280 Sensoren**
+### **Kurze Beschreibung**
 
-Zwei BME280 Sensoren wurden über I2C angeschlossen.
+Der ESP32 liest echte Sensordaten und sendet diese per MQTT an HiveMQ Cloud. Das Railway Backend empfängt die MQTT-Nachrichten als Subscriber, verarbeitet die Daten und stellt sie über eine REST API bereit. Das Online-Dashboard ruft die Daten ab und zeigt sie live, historisch und grafisch an.
 
-**Verkabelung:**
+---
+
+## **3. Echte ESP32-Sensordaten**
+
+### **Wichtige Schritte**
+
+1. ESP32 mit MicroPython flashen.
+2. `main.py`, `config.py` und `bme280.py` auf den ESP32 kopieren.
+3. WLAN-Zugangsdaten in `config.py` setzen.
+4. MQTT-Zugangsdaten für HiveMQ Cloud eintragen.
+5. Sensorwerte im Serial Monitor prüfen.
+6. Prüfen, ob Daten im Backend-Endpoint `/sensordaten` erscheinen.
+
+### **Kurze Beschreibung**
+
+Der ESP32 ist die echte Datenquelle. Er liest Temperatur, Luftfeuchtigkeit, Luftdruck und Gaswerte aus und sendet sie regelmäßig an den MQTT-Broker.
+
+### **Wichtige Dateien**
+
+```text
+C:\Users\guedr\esp32-iot-hardware\main.py
+C:\Users\guedr\esp32-iot-hardware\config.py
+C:\Users\guedr\esp32-iot-hardware\bme280.py
+```
+
+### **Wichtige Befehle**
+
+```powershell
+cd C:\Users\guedr\esp32-iot-hardware
+
+py -m mpremote connect COM3 fs cp .\config.py :config.py
+py -m mpremote connect COM3 fs cp .\bme280.py :bme280.py
+py -m mpremote connect COM3 fs cp .\main.py :main.py
+py -m mpremote connect COM3 reset
+```
+
+### **Wichtiges Problem**
+
+Der Serial Monitor zeigte manchmal keine Verbindung oder COM3 war blockiert.
+
+### **Lösung**
+
+Der Serial Monitor muss geschlossen werden, bevor `mpremote` benutzt wird.
+
+---
+
+## **4. Mehrere Sensoren**
+
+### **Verwendete Sensoren**
+
+```text
+BME280_1 → Temperatur, Luftfeuchtigkeit, Luftdruck
+BME280_2 → Temperatur, Luftfeuchtigkeit, Luftdruck
+MQ2_1    → Gas-/Rauchüberwachung
+```
+
+### **Wichtige Schritte**
+
+1. Beide BME280 über I2C anschließen.
+2. MQ-2 an ADC-Pin GPIO34 anschließen.
+3. I2C-Adressen prüfen.
+4. Sensoren im ESP32-Code getrennt auslesen.
+5. Jeden Sensor an ein eigenes MQTT-Topic senden.
+
+### **BME280 Verkabelung**
 
 ```text
 BME280 VCC/VIN → ESP32 3V3
@@ -64,33 +113,7 @@ BME280 SDA     → ESP32 GPIO21
 BME280 SCL     → ESP32 GPIO22
 ```
 
-Die erkannten I2C-Adressen waren:
-
-```text
-BME280_1 → 0x76
-BME280_2 → 0x77
-```
-
-Im Serial Monitor wurde angezeigt:
-
-```text
-I2C Geräte: [118, 119]
-```
-
-Das bedeutet:
-
-```text
-118 = 0x76
-119 = 0x77
-```
-
-Damit wurden beide BME280 Sensoren korrekt erkannt.
-
-### **MQ-2 Sensor**
-
-Der MQ-2 Sensor wurde für Gas-/Rauchwerte verwendet.
-
-**Verkabelung:**
+### **MQ-2 Verkabelung**
 
 ```text
 MQ-2 VCC  → ESP32 VIN/5V
@@ -98,107 +121,25 @@ MQ-2 GND  → ESP32 GND
 MQ-2 AOUT → Spannungsteiler → ESP32 GPIO34
 ```
 
-**Wichtig:**
+### **Wichtiges Problem**
 
-```text
-GPIO34 vom ESP32 darf maximal 3.3V bekommen.
-MQ-2 AOUT darf nicht direkt mit 5V auf GPIO34 verbunden werden.
-```
+Ein BME280 wurde gedrückt oder bewegt und der ESP32 hat die Verbindung verloren.
 
----
+### **Ursache**
 
-## **4. Lokale Docker-Umgebung**
+Wahrscheinlich gab es einen Wackelkontakt oder Kurzschluss auf dem Breadboard.
 
-Für lokale Tests wurden Docker-Container verwendet:
+### **Lösung**
 
-```text
-mqtt      → Mosquitto MQTT Broker
-backend   → FastAPI Backend
-frontend  → Streamlit Dashboard
-sensor    → Docker-Simulator
-```
-
-**Lokale Services starten:**
-
-```powershell
-cd C:\Users\guedr\iot-dashboard
-docker compose up -d mqtt backend frontend
-docker compose stop sensor
-docker compose ps
-```
-
-**Beschreibung:**
-
-* `mqtt`, `backend` und `frontend` müssen laufen.
-* `sensor` muss gestoppt werden, wenn echte ESP32-Daten verwendet werden.
-* Sonst zeigt das Dashboard simulierte Werte statt echte Sensorwerte.
+Sensoren nicht drücken, Kabel feststecken und jeden Sensor einzeln testen.
 
 ---
 
-## **5. MicroPython auf ESP32 installieren**
+## **5. MQTT-Kommunikation**
 
-Der ESP32 wurde zuerst gelöscht:
+### **Wichtige MQTT-Topics**
 
-```powershell
-py -m esptool --chip esp32 --port COM3 --baud 115200 erase-flash
-```
-
-Danach wurde MicroPython installiert:
-
-```powershell
-py -m esptool --chip esp32 --port COM3 --baud 115200 write-flash --flash-mode dio --flash-freq 40m --flash-size 4MB -z 0x1000 .\ESP32_GENERIC-20260406-v1.28.0.bin
-```
-
-Danach wurden die Projektdateien auf den ESP32 kopiert:
-
-```powershell
-cd C:\Users\guedr\esp32-iot-hardware
-
-py -m mpremote connect COM3 fs cp .\config.py :config.py
-py -m mpremote connect COM3 fs cp .\bme280.py :bme280.py
-py -m mpremote connect COM3 fs cp .\main.py :main.py
-```
-
-**Wichtig:**
-
-```text
-Der Serial Monitor muss geschlossen sein, bevor mpremote verwendet wird.
-Sonst ist COM3 blockiert.
-```
-
----
-
-## **6. ESP32 Konfiguration**
-
-**Datei:**
-
-```text
-C:\Users\guedr\esp32-iot-hardware\config.py
-```
-
-Für das Online-Dashboard muss der ESP32 an HiveMQ Cloud senden:
-
-```python
-WIFI_SSID = "ESP32_TEST"
-WIFI_PASSWORD = "DEIN_WLAN_PASSWORT"
-
-MQTT_BROKER = "ec53cff1a655417a8246e130835c8427.s1.eu.hivemq.cloud"
-MQTT_PORT = 8883
-MQTT_USERNAME = "Sensor_user"
-MQTT_PASSWORD = "DEIN_SENSOR_USER_PASSWORT"
-```
-
-**Beschreibung:**
-
-* `Sensor_user` wird nur vom ESP32 verwendet.
-* Der ESP32 darf MQTT-Nachrichten publishen.
-* Das Backend verwendet einen anderen Benutzer: `Railway_backend`.
-
----
-
-## **7. MQTT Topics**
-
-Der ESP32 sendet an diese Topics:
+Der ESP32 sendet an:
 
 ```text
 sensors/bme280_1
@@ -206,144 +147,27 @@ sensors/bme280_2
 sensors/mq2_1
 ```
 
-**Beschreibung:**
-
-* Jeder Sensor hat ein eigenes MQTT-Topic.
-* Das Backend muss alle Topics unter `sensors/` abonnieren.
-
----
-
-## **8. Problem: Docker-Simulator sendet falsche Werte**
-
-### **Beschreibung**
-
-Am Anfang wurden im Dashboard Werte angezeigt, obwohl die echten Sensoren noch nicht korrekt verbunden waren.
-
-### **Ursache**
-
-Der Docker-Simulator lief noch und sendete künstliche Sensordaten.
-
-### **Lösung**
-
-Simulator stoppen:
-
-```powershell
-cd C:\Users\guedr\iot-dashboard
-docker compose stop sensor
-```
-
-Prüfen:
-
-```powershell
-docker compose ps
-```
-
-Erwartung:
+Das Backend abonniert:
 
 ```text
-mqtt      läuft
-backend   läuft
-frontend  läuft
-sensor    gestoppt
+sensors/#
 ```
 
----
+### **Kurze Beschreibung**
 
-## **9. Problem: Lokaler MQTT Broker nicht erreichbar**
+MQTT arbeitet nach dem Publish/Subscribe-Prinzip. Der ESP32 veröffentlicht Daten, das Backend abonniert die passenden Topics.
 
-### **Beschreibung**
+### **Wichtige Schritte**
 
-Der ESP32 sollte zuerst lokal an Mosquitto auf Port `1883` senden.
+1. ESP32 veröffentlicht Sensordaten.
+2. HiveMQ Cloud empfängt die Nachrichten.
+3. Backend verbindet sich mit HiveMQ.
+4. Backend subscribed auf `sensors/#`.
+5. Backend empfängt MQTT-Nachrichten.
 
-Im Serial Monitor erschien:
+### **Wichtiges Problem**
 
-```text
-MQTT ohne TLS/SSL
-OSError: [Errno 104] ECONNRESET
-```
-
-### **Ursache**
-
-Der lokale MQTT-Broker war aus dem ESP32-Netzwerk nicht erreichbar. PC und ESP32 waren nicht im gleichen erreichbaren Netzwerk oder Windows Firewall/Hotspot blockierte die Verbindung.
-
-### **Test**
-
-```powershell
-Test-NetConnection 10.144.74.227 -Port 1883
-```
-
-Das Ergebnis war:
-
-```text
-TcpTestSucceeded : False
-```
-
-### **Lösung**
-
-Für das Projekt wurde die stabilere Cloud-Lösung benutzt:
-
-```text
-ESP32 → HiveMQ Cloud → Railway Backend → Online Dashboard
-```
-
----
-
-## **10. Problem: Railway Backend war bei HiveMQ nicht autorisiert**
-
-### **Beschreibung**
-
-Railway Backend Logs zeigten:
-
-```text
-MQTT connection failed. reason_code=Not authorized
-```
-
-### **Ursache**
-
-Die MQTT-Zugangsdaten im Railway Backend waren falsch oder es wurde der falsche HiveMQ-Benutzer verwendet.
-
-### **Lösung**
-
-In Railway Backend Variables wurden gesetzt:
-
-```env
-MQTT_BROKER=ec53cff1a655417a8246e130835c8427.s1.eu.hivemq.cloud
-MQTT_PORT=8883
-MQTT_USERNAME=Railway_backend
-MQTT_PASSWORD=DEIN_RAILWAY_BACKEND_PASSWORT
-```
-
-**Wichtig:**
-
-```text
-ESP32 benutzt Sensor_user.
-Backend benutzt Railway_backend.
-```
-
-Danach wurde das Backend neu deployed:
-
-```text
-Railway → backend → Deployments → Redeploy
-```
-
----
-
-## **11. Problem: Backend abonnierte falsches MQTT Topic**
-
-### **Beschreibung**
-
-Das Backend war mit MQTT verbunden, aber empfing keine ESP32-Daten.
-
-Im Log stand:
-
-```text
-MQTT connected successfully
-MQTT subscribed to sensors/data
-```
-
-### **Ursache**
-
-Das Backend abonnierte nur:
+Das Backend abonnierte zuerst nur:
 
 ```text
 sensors/data
@@ -359,222 +183,240 @@ sensors/mq2_1
 
 ### **Lösung**
 
-In der Datei:
-
-```text
-C:\Users\guedr\iot-dashboard\backend\main.py
-```
-
-wurde geändert:
-
-Falsch:
-
-```python
-client.subscribe("sensors/data")
-```
-
-Richtig:
+In `backend/main.py` ändern:
 
 ```python
 client.subscribe("sensors/#")
 ```
 
-**Beschreibung:**
-
-* `sensors/#` bedeutet: alle Topics unter `sensors/`.
-* Dadurch empfängt das Backend alle Sensorwerte.
-
-Nach der Änderung stand im Log:
-
-```text
-MQTT connected successfully
-MQTT subscribed to sensors/#
-MQTT message received: topic=sensors/bme280_1
-MQTT message received: topic=sensors/bme280_2
-MQTT message received: topic=sensors/mq2_1
-```
-
 ---
 
-## **12. Problem: Fehlender Timestamp im Sensor-Payload**
+## **6. MQTT Authentication**
 
-### **Beschreibung**
+### **Kurze Beschreibung**
 
-Das Backend empfing die MQTT-Nachrichten, aber lehnte sie ab.
+MQTT Authentication schützt das System vor unautorisierten Geräten. Nur gültige Benutzer dürfen MQTT-Nachrichten senden oder empfangen.
 
-Fehlermeldung:
+### **Verwendete MQTT-Benutzer**
 
 ```text
-Invalid MQTT payload
-timestamp
-Field required
+Sensor_user      → ESP32 sendet Sensordaten
+Railway_backend  → Backend empfängt Sensordaten
+```
+
+### **Wichtige Schritte**
+
+1. In HiveMQ Cloud zwei Benutzer erstellen.
+2. `Sensor_user` für ESP32 verwenden.
+3. `Railway_backend` für das Backend verwenden.
+4. Benutzerrechte passend setzen.
+5. Railway Backend Variables setzen.
+6. Backend neu deployen.
+
+### **Railway Backend Variables**
+
+```env
+MQTT_BROKER=ec53cff1a655417a8246e130835c8427.s1.eu.hivemq.cloud
+MQTT_PORT=8883
+MQTT_USERNAME=Railway_backend
+MQTT_PASSWORD=DEIN_RAILWAY_BACKEND_PASSWORT
+```
+
+### **ESP32 config.py**
+
+```python
+MQTT_BROKER = "ec53cff1a655417a8246e130835c8427.s1.eu.hivemq.cloud"
+MQTT_PORT = 8883
+MQTT_USERNAME = "Sensor_user"
+MQTT_PASSWORD = "DEIN_SENSOR_USER_PASSWORT"
+```
+
+### **Wichtiges Problem**
+
+Railway Backend zeigte:
+
+```text
+MQTT connection failed. reason_code=Not authorized
 ```
 
 ### **Ursache**
 
-Das Backend-Modell `SensorData` verlangte einen `timestamp`.
-
-Der ESP32 sendete aber keinen Timestamp im JSON.
+Falscher MQTT-Benutzer oder falsches Passwort im Railway Backend.
 
 ### **Lösung**
 
-Der Timestamp wird im Backend automatisch ergänzt.
+Backend muss `Railway_backend` verwenden, nicht `Sensor_user`.
 
-Datei:
+---
+
+## **7. REST API**
+
+### **Kurze Beschreibung**
+
+Die REST API stellt gespeicherte Sensordaten für das Frontend bereit.
+
+### **Wichtige Endpoints**
 
 ```text
-C:\Users\guedr\iot-dashboard\backend\main.py
+GET /health
+GET /sensordaten
 ```
 
-Import ergänzen:
+### **Online Backend**
 
-```python
-from datetime import datetime, timezone
+```text
+https://backend-production-4878.up.railway.app
 ```
 
-In `on_message()` vor der Validierung:
-
-```python
-payload = json.loads(msg.payload.decode())
-
-if "timestamp" not in payload or payload["timestamp"] is None:
-    payload["timestamp"] = datetime.now(timezone.utc).isoformat()
-
-sensor_data = SensorData(**payload)
-```
-
-**Beschreibung:**
-
-* Der ESP32 muss keinen Timestamp senden.
-* Das Backend setzt beim Empfang automatisch die aktuelle UTC-Zeit.
-
----
-
-## **13. Problem: Daten wurden empfangen, aber nicht gespeichert**
-
-### **Beschreibung**
-
-Das Backend zeigte MQTT-Nachrichten im Log, aber `/sensordaten` war leer.
-
-### **Ursache**
-
-Die empfangenen Daten wurden nicht in die Datenliste gespeichert.
-
-### **Lösung**
-
-In `on_message()` muss nach der Validierung gespeichert werden:
-
-```python
-sensor_data_list.append(sensor_data)
-```
-
-oder bei Dictionary-Ausgabe:
-
-```python
-sensor_data_list.append(sensor_data.model_dump())
-```
-
-Beispiel:
-
-```python
-def on_message(client, userdata, msg):
-    print(f"MQTT message received: topic={msg.topic}, payload={msg.payload}")
-
-    try:
-        payload = json.loads(msg.payload.decode())
-
-        if "timestamp" not in payload or payload["timestamp"] is None:
-            payload["timestamp"] = datetime.now(timezone.utc).isoformat()
-
-        sensor_data = SensorData(**payload)
-        sensor_data_list.append(sensor_data)
-
-        print(f"Sensor data saved: {sensor_data.sensor_id}")
-
-    except Exception as e:
-        print(f"Invalid MQTT payload on topic '{msg.topic}': {e}")
-```
-
----
-
-## **14. Backend erfolgreich getestet**
-
-Der Backend Endpoint:
+### **Sensordaten Endpoint**
 
 ```text
 https://backend-production-4878.up.railway.app/sensordaten
 ```
 
-zeigte danach echte Sensordaten.
+### **Wichtige Schritte**
 
-Beispiel:
+1. Backend starten.
+2. MQTT-Daten empfangen.
+3. Sensordaten speichern.
+4. Daten über `/sensordaten` bereitstellen.
+5. Frontend ruft diese API regelmäßig ab.
 
-```json
-{
-  "sensor_id": "bme280_1",
-  "sensor_type": "BME280",
-  "timestamp": "2026-07-03T01:27:49.957043Z",
-  "temperature_c": 27.27,
-  "humidity_percent": 40.7,
-  "pressure_hpa": 1015.11,
-  "gas_value": null,
-  "smoke_warning": false,
-  "email_sent": false
-}
+### **Test mit PowerShell**
+
+```powershell
+Invoke-RestMethod https://backend-production-4878.up.railway.app/sensordaten | Select-Object -Last 10
 ```
 
-**Beschreibung:**
+### **Wichtiges Problem**
 
-* Die Daten kommen vom ESP32.
-* Das Backend empfängt sie über HiveMQ.
-* Der Endpoint `/sensordaten` gibt sie als JSON zurück.
+`/sensordaten` zeigte zuerst:
 
----
-
-## **15. Problem: Online Dashboard leer trotz Backend-Daten**
-
-### **Beschreibung**
-
-Das Backend zeigte Daten, aber das Frontend-Dashboard blieb leer.
+```json
+[]
+```
 
 ### **Ursache**
 
-Das Frontend war wahrscheinlich mit einer falschen Backend-URL konfiguriert.
+Das Backend empfing noch keine MQTT-Daten oder speicherte sie nicht.
 
 ### **Lösung**
 
-In Railway Frontend Variables muss stehen:
+Prüfen:
+
+```text
+MQTT connected successfully
+MQTT subscribed to sensors/#
+MQTT message received
+```
+
+und in `on_message()` speichern:
+
+```python
+sensor_data_list.append(sensor_data)
+```
+
+---
+
+## **8. Online Dashboard**
+
+### **Kurze Beschreibung**
+
+Das Online-Dashboard zeigt aktuelle Messwerte, Tabellen, Diagramme, Warnungen, Exportfunktionen und historische Analyse.
+
+### **Online Dashboard URL**
+
+```text
+https://iot-dashboard-production-da48.up.railway.app
+```
+
+### **Wichtige Schritte**
+
+1. Frontend auf Railway deployen.
+2. Backend URL im Frontend setzen.
+3. Frontend neu deployen.
+4. Browser mit `Strg + F5` neu laden.
+
+### **Railway Frontend Variable**
 
 ```env
 BACKEND_URL=https://backend-production-4878.up.railway.app
 ```
 
-Falsch wären:
+### **Wichtiges Problem**
+
+Backend hatte Daten, aber Dashboard blieb leer.
+
+### **Ursache**
+
+Frontend verwendete falsche Backend URL.
+
+### **Lösung**
+
+In Railway Frontend Variables setzen:
 
 ```env
-BACKEND_URL=http://localhost:8000
-BACKEND_URL=http://backend:8000
+BACKEND_URL=https://backend-production-4878.up.railway.app
 ```
 
-Danach:
-
-```text
-Railway → frontend → Deployments → Redeploy
-```
-
-Im Browser danach neu laden:
-
-```text
-Strg + F5
-```
+Danach Frontend redeployen.
 
 ---
 
-## **16. Historische Analyse im Dashboard**
+## **9. Auto Refresh**
 
-Im Dashboard gibt es eine historische Analyse.
+### **Kurze Beschreibung**
 
-Beispielwerte:
+Auto Refresh aktualisiert das Dashboard automatisch in festen Zeitintervallen.
+
+### **Wichtige Schritte**
+
+1. Auto Refresh im Streamlit Dashboard aktivieren.
+2. Aktualisierungsintervall setzen.
+3. Daten regelmäßig vom Backend abrufen.
+4. Manuelle Aktualisierung überflüssig machen.
+
+### **Beispiel**
+
+```text
+Auto Refresh: alle 5 Sekunden
+```
+
+### **Nutzen**
+
+* neue Daten erscheinen automatisch
+* Dashboard wirkt wie ein Live-Monitor
+* bessere Bedienbarkeit bei Präsentationen
+
+### **Wichtiges Problem**
+
+Am Anfang musste das Dashboard manuell aktualisiert werden.
+
+### **Lösung**
+
+Auto Refresh einbauen und den manuellen Aktualisieren-Button entfernen oder reduzieren.
+
+---
+
+## **10. Historische Analyse**
+
+### **Kurze Beschreibung**
+
+Die historische Analyse berechnet statistische Werte aus gespeicherten Sensordaten.
+
+### **Angezeigte Werte**
+
+```text
+Ø Temperatur
+Min Temperatur
+Max Temperatur
+
+Ø Luftfeuchtigkeit
+Min Luftfeuchtigkeit
+Max Luftfeuchtigkeit
+```
+
+### **Beispiel**
 
 ```text
 Ø Temperatur:        24.87 °C
@@ -586,179 +428,96 @@ Min Luftfeuchtigkeit: 28.02 %
 Max Luftfeuchtigkeit: 58.29 %
 ```
 
-**Beschreibung:**
+### **Wichtige Schritte**
 
-* `Ø` bedeutet Durchschnitt.
-* `Min` bedeutet kleinster gespeicherter Wert.
-* `Max` bedeutet größter gespeicherter Wert.
-* Diese Werte beziehen sich auf die gespeicherten Messwerte, nicht nur auf den aktuellsten Messwert.
+1. Sensordaten speichern.
+2. Historische Daten aus Backend laden.
+3. BME280-Daten filtern.
+4. Durchschnitt, Minimum und Maximum berechnen.
+5. Werte im Dashboard anzeigen.
 
----
+### **Wichtiges Problem**
 
-## **17. BME280 Temperaturprüfung**
-
-### **Beschreibung**
-
-Die BME280 Sensoren zeigten teilweise höhere Temperaturen als Handy oder Laptop.
+Es war unklar, ob die Werte aktuell oder historisch sind.
 
 ### **Erklärung**
 
-Der BME280 misst die Temperatur direkt am Sensor-Chip.
-
-Er misst nicht automatisch dieselbe Temperatur wie:
-
-```text
-Handy-Wetter-App
-Laptop-Wetteranzeige
-CPU-Temperatur
-Außentemperatur
-```
-
-Mögliche Wärmequellen:
-
-```text
-ESP32
-MQ-2 Sensor
-Laptop
-USB-Port
-Finger/Hand
-Breadboard
-schlechte Belüftung
-```
-
-Besonders wichtig:
-
-```text
-Der MQ-2 wird warm, weil er eine Heizspirale hat.
-Der BME280 muss deshalb weit weg vom MQ-2 liegen.
-```
-
-Empfohlene Platzierung:
-
-```text
-BME280 mindestens 30–50 cm weg vom ESP32
-BME280 mindestens 30–50 cm weg vom MQ-2
-BME280 nicht anfassen
-10–15 Minuten warten
-Dann Werte prüfen
-```
+Die historische Analyse zeigt Statistik aus gespeicherten Messwerten, nicht nur den letzten aktuellen Wert.
 
 ---
 
-## **18. BME280 Temperatur-Offset**
+## **11. Diagramme**
 
-### **Beschreibung**
+### **Kurze Beschreibung**
 
-Wenn der BME280 etwas zu hohe Temperatur zeigt, kann ein Software-Offset benutzt werden.
+Diagramme zeigen Messwerte über Zeit. Dadurch werden Trends und Veränderungen sichtbar.
 
-Beispiel:
+### **Wichtige Diagramme**
 
-```text
-BME280 zeigt:      18 °C
-Echte Temperatur:  15 °C
-Offset:            15 - 18 = -3
-```
+* Temperaturverlauf
+* Luftfeuchtigkeitsverlauf
+* Luftdruckverlauf
+* Gaswertverlauf
+* Rauchwarnung für MQ-2
 
-Datei:
+### **Wichtige Schritte**
 
-```text
-C:\Users\guedr\esp32-iot-hardware\main.py
-```
+1. Daten aus `/sensordaten` laden.
+2. Timestamp in deutsche Zeit umwandeln.
+3. Daten nach Sensor filtern.
+4. Diagramme im Dashboard anzeigen.
+5. MQ-2 separat mit Gaswert und Rauchwarnung darstellen.
 
-Offset-Konfiguration:
+### **Wichtiges Problem**
 
-```python
-BME280_TEMP_OFFSETS = {
-    "bme280_1": -3.0,
-    "bme280_2": -3.0,
-}
-```
+MQ-2 zeigte zuerst falsche Spalten wie Temperatur und Luftfeuchtigkeit.
 
-Funktion:
+### **Lösung**
 
-```python
-def apply_temperature_offset(sensor_id, temperature):
-    offset = BME280_TEMP_OFFSETS.get(sensor_id, 0)
-    return temperature + offset
-```
-
-In `read_bme280()`:
-
-```python
-temperature_corrected = apply_temperature_offset(sensor_id, temperature)
-
-payload = {
-    "sensor_type": "BME280",
-    "sensor_id": sensor_id,
-    "temperature_c": round(temperature_corrected, 2),
-    "humidity_percent": round(humidity, 2),
-    "pressure_hpa": round(pressure, 2),
-    "gas_value": None,
-    "smoke_warning": False,
-}
-```
-
-Danach auf den ESP32 kopieren:
-
-```powershell
-cd C:\Users\guedr\esp32-iot-hardware
-py -m mpremote connect COM3 fs cp .\main.py :main.py
-py -m mpremote connect COM3 reset
-```
+Wenn MQ-2 ausgewählt ist, im Dashboard Gaswert und Rauchwarnung anzeigen.
 
 ---
 
-## **19. MQ-2 Test**
+## **12. Grenzwertwarnungen**
 
-### **Beschreibung**
+### **Kurze Beschreibung**
 
-Der MQ-2 wurde für Gas-/Rauchwerte verwendet.
+Grenzwertwarnungen zeigen kritische Sensorwerte direkt im Dashboard an.
 
-Ein Test mit offenem Feuer wurde nicht empfohlen.
+### **Beispiele**
 
-### **Sichererer Test**
+* Temperatur zu hoch
+* Gaswert zu hoch
+* Rauchwarnung aktiv
 
-```text
-1. MQ-2 5–10 Minuten aufwärmen lassen
-2. Desinfektionsmittel oder Alkohol auf ein Tuch geben
-3. Tuch 2–5 cm vor den MQ-2 halten
-4. gas_value beobachten
-```
-
-Erwartung:
-
-```text
-gas_value steigt deutlich
-```
-
-Beispiel:
-
-```text
-100 → 300 → 800 → 1500
-```
-
----
-
-## **20. MQ-2 Rauchwarnung**
-
-### **Beschreibung**
-
-Die Rauchwarnung wird über einen Grenzwert berechnet.
-
-Beispiel im Code:
+### **MQ-2 Grenzwert**
 
 ```python
 GAS_WARNING_LIMIT = 3000
 ```
 
-Logik:
+### **Logik**
 
 ```text
 gas_value <= 3000 → smoke_warning = false
 gas_value > 3000  → smoke_warning = true
 ```
 
-Für eine Demonstration kann der Grenzwert niedriger gesetzt werden:
+### **Wichtige Schritte**
+
+1. Grenzwert im ESP32-Code definieren.
+2. MQ-2 Gaswert lesen.
+3. `smoke_warning` berechnen.
+4. Warnung per MQTT senden.
+5. Warnung im Dashboard farbig anzeigen.
+
+### **Wichtiges Problem**
+
+Für Demo war der Grenzwert teilweise zu hoch.
+
+### **Lösung**
+
+Für Tests oder Präsentation kann der Grenzwert niedriger gesetzt werden:
 
 ```python
 GAS_WARNING_LIMIT = 1000
@@ -770,18 +529,324 @@ oder:
 GAS_WARNING_LIMIT = 500
 ```
 
-**Beschreibung:**
+---
 
-* Für echte Nutzung sollte der Grenzwert durch Tests kalibriert werden.
-* Für eine Demo ist ein niedriger Grenzwert einfacher sichtbar.
+## **13. E-Mail-Alerts**
+
+### **Kurze Beschreibung**
+
+E-Mail-Alerts informieren den Benutzer automatisch, wenn kritische Werte erkannt werden.
+
+### **Mögliche Auslöser**
+
+* hohe Temperatur
+* hoher Gaswert
+* Rauchwarnung
+* ML-Vorhersage mit kritischem Wert
+
+### **Wichtige Schritte**
+
+1. E-Mail-Service konfigurieren.
+2. Empfängeradresse setzen.
+3. Warnlogik im Backend prüfen.
+4. E-Mail bei kritischem Messwert senden.
+5. Status `email_sent` speichern.
+6. Im Dashboard anzeigen, dass E-Mail gesendet wurde.
+
+### **Wichtige Umgebungsvariablen**
+
+```env
+RESEND_API_KEY=DEIN_RESEND_API_KEY
+EMAIL_FROM=DEINE_ABSENDER_EMAIL
+EMAIL_RECEIVER=DEINE_EMPFAENGER_EMAIL
+```
+
+### **Wichtiges Problem**
+
+SMTP funktionierte auf Railway nicht zuverlässig.
+
+### **Lösung**
+
+Resend API über HTTPS verwenden, statt SMTP.
+
+### **Dashboard-Anzeige**
+
+Das Dashboard zeigt bei Warnungen eine Meldung wie:
+
+```text
+Warnung erkannt – E-Mail-Warnung wurde erfolgreich gesendet
+```
+
+---
+
+## **14. CSV/PDF Export**
+
+### **Kurze Beschreibung**
+
+Der Export ermöglicht das Herunterladen der aktuellen Messwerttabelle oder historischer Daten.
+
+### **Exportformate**
+
+* CSV
+* PDF
+
+### **Wichtige Schritte**
+
+1. Aktuelle Tabelle im Dashboard vorbereiten.
+2. Daten mit Zeilennummern versehen.
+3. CSV-Datei erzeugen.
+4. PDF-Datei erzeugen.
+5. Download-Buttons anzeigen.
+
+### **Wichtiges Problem**
+
+Die exportierten Dateien sollten dieselben Werte zeigen wie die aktuelle Messtabelle.
+
+### **Lösung**
+
+Export muss auf derselben gefilterten Tabelle basieren, die im Dashboard angezeigt wird.
+
+### **Button-Farben**
+
+```text
+PDF herunterladen → Blau
+CSV herunterladen → Orange
+```
+
+---
+
+## **15. Docker Deployment**
+
+### **Kurze Beschreibung**
+
+Docker verpackt die Anwendung in Container. Dadurch läuft die Anwendung auf verschiedenen Rechnern gleich.
+
+### **Wichtige Services**
+
+```text
+mqtt
+backend
+frontend
+sensor
+```
+
+### **Lokaler Start**
+
+```powershell
+cd C:\Users\guedr\iot-dashboard
+docker compose up -d mqtt backend frontend
+docker compose stop sensor
+docker compose ps
+```
+
+### **Wichtige Regel**
+
+Wenn echte ESP32-Daten verwendet werden:
+
+```text
+sensor-Container stoppen
+```
+
+### **Wichtiges Problem**
+
+Der Docker-Simulator sendete Fake-Daten.
+
+### **Lösung**
+
+```powershell
+docker compose stop sensor
+```
+
+---
+
+## **16. Cloud Deployment**
+
+### **Kurze Beschreibung**
+
+Mit Cloud Deployment ist das Projekt online erreichbar. Andere Personen können das Dashboard ohne lokale Installation testen.
+
+### **Verwendete Cloud-Dienste**
+
+```text
+Railway Backend
+Railway Frontend
+HiveMQ Cloud MQTT Broker
+```
+
+### **Wichtige Schritte**
+
+1. Backend auf Railway deployen.
+2. Frontend auf Railway deployen.
+3. HiveMQ Cloud Broker einrichten.
+4. Railway Variables setzen.
+5. ESP32 auf HiveMQ konfigurieren.
+6. Dashboard online testen.
+
+### **Wichtiges Problem**
+
+Backend lief online, aber empfing zuerst keine Daten.
+
+### **Ursachen**
+
+* falsche MQTT Credentials
+* falsches MQTT Topic
+* fehlender Timestamp
+* Daten wurden nicht gespeichert
+
+### **Lösung**
+
+Schrittweise prüfen:
+
+```text
+MQTT connected?
+MQTT subscribed to sensors/#?
+MQTT message received?
+/sensordaten zeigt Daten?
+Dashboard zeigt Daten?
+```
+
+---
+
+## **17. Machine-Learning-Vorhersage**
+
+### **Kurze Beschreibung**
+
+Die Machine-Learning-Funktion verwendet historische Sensordaten, um zukünftige Werte zu schätzen.
+
+### **Beispiel**
+
+```text
+In 30 Minuten: 34 °C
+```
+
+### **Wichtige Schritte**
+
+1. Historische Sensordaten sammeln.
+2. Temperaturdaten vorbereiten.
+3. Zeitwerte korrekt formatieren.
+4. ML-Modell trainieren oder einfache Vorhersage berechnen.
+5. Vorhersage im Dashboard anzeigen.
+6. Optional E-Mail bei kritischer Vorhersage senden.
+
+### **Nutzen**
+
+* zukünftige Temperaturentwicklung abschätzen
+* kritische Werte früher erkennen
+* Projekt mit Datenanalyse erweitern
+
+### **Wichtiges Problem**
+
+Für ML braucht man genügend historische Daten.
+
+### **Lösung**
+
+Vorhersage erst sinnvoll anzeigen, wenn genug gespeicherte Messwerte vorhanden sind.
+
+---
+
+## **18. Deutsche echte Datum- und Zeitdarstellung**
+
+### **Kurze Beschreibung**
+
+Die Daten sollen nicht in Greenwich-Zeit angezeigt werden, sondern in deutscher lokaler Zeit.
+
+### **Wichtige Schritte**
+
+1. Backend speichert UTC-Zeit.
+2. Frontend wandelt UTC in deutsche Zeit um.
+3. Tabellen und Diagramme verwenden dieselbe Zeitlogik.
+4. Historische Analyse zeigt keine zukünftigen Zeiten.
+
+### **Beispiel**
+
+```text
+03.07.2026, 01:27:49
+```
+
+### **Wichtiges Problem**
+
+Dashboard zeigte teilweise Greenwich-Zeit oder falsche Zeit im Verlauf.
+
+### **Lösung**
+
+Zeit im Frontend konsistent nach Deutschland/Berlin umwandeln.
+
+---
+
+## **19. BME280 Temperatur-Kalibrierung**
+
+### **Kurze Beschreibung**
+
+Der BME280 misst die Temperatur direkt am Sensor-Chip. Er zeigt nicht automatisch dieselbe Temperatur wie Handy, Laptop oder Wetter-App.
+
+### **Mögliche Wärmequellen**
+
+```text
+ESP32
+MQ-2 Sensor
+Laptop
+USB-Port
+Finger/Hand
+Breadboard
+schlechte Belüftung
+```
+
+### **Wichtige Schritte**
+
+1. BME280 30–50 cm weg vom ESP32 legen.
+2. BME280 30–50 cm weg vom MQ-2 legen.
+3. Sensor nicht berühren.
+4. 10–15 Minuten warten.
+5. Mit Referenztemperatur vergleichen.
+6. Optional Offset setzen.
+
+### **Offset-Beispiel**
+
+```text
+BME280 zeigt:      18 °C
+Echte Temperatur:  15 °C
+Offset:            15 - 18 = -3
+```
+
+### **Code-Beispiel**
+
+```python
+BME280_TEMP_OFFSETS = {
+    "bme280_1": -3.0,
+    "bme280_2": -3.0,
+}
+```
+
+---
+
+## **20. MQ-2 Test und Sicherheit**
+
+### **Kurze Beschreibung**
+
+Der MQ-2 erkennt Rauch und brennbare Gase. Er ist ein Warnsensor, aber kein exakt kalibrierter Messsensor.
+
+### **Sicherer Test**
+
+```text
+1. MQ-2 5–10 Minuten aufwärmen lassen
+2. Desinfektionsmittel oder Alkohol auf ein Tuch geben
+3. Tuch 2–5 cm vor den MQ-2 halten
+4. gas_value beobachten
+```
+
+### **Wichtiges Problem**
+
+Ein Test mit offenem Feuer ist riskant.
+
+### **Lösung**
+
+Kein offenes Feuer verwenden. Alkohol-/Desinfektionsmittel-Dampf reicht für einen sicheren Funktionstest.
 
 ---
 
 ## **21. Finaler Testablauf**
 
-Bei Problemen sollte immer in dieser Reihenfolge getestet werden.
-
-### **Schritt 1: ESP32 Serial Monitor**
+### **Schritt 1: ESP32 Serial Monitor prüfen**
 
 Erwartung:
 
@@ -792,7 +857,7 @@ Gesendet an sensors/mq2_1
 ESP32 läuft...
 ```
 
-### **Schritt 2: Railway Backend Logs**
+### **Schritt 2: Railway Backend Logs prüfen**
 
 Erwartung:
 
@@ -804,7 +869,7 @@ MQTT message received: topic=sensors/bme280_2
 MQTT message received: topic=sensors/mq2_1
 ```
 
-### **Schritt 3: Backend Endpoint**
+### **Schritt 3: Backend API prüfen**
 
 Öffnen:
 
@@ -815,10 +880,10 @@ https://backend-production-4878.up.railway.app/sensordaten
 Erwartung:
 
 ```text
-JSON-Daten mit Sensorwerten werden angezeigt.
+JSON-Daten mit echten Sensorwerten werden angezeigt.
 ```
 
-### **Schritt 4: Online Dashboard**
+### **Schritt 4: Online Dashboard prüfen**
 
 Öffnen:
 
@@ -826,43 +891,61 @@ JSON-Daten mit Sensorwerten werden angezeigt.
 https://iot-dashboard-production-da48.up.railway.app
 ```
 
-Wenn Backend Daten hat, aber Dashboard leer ist:
+Erwartung:
 
 ```text
-BACKEND_URL im Railway Frontend prüfen
-Frontend redeployen
-Browser mit Strg + F5 neu laden
+Dashboard zeigt aktuelle echte ESP32-Werte, Diagramme, historische Analyse und Warnungen.
 ```
 
 ---
 
-## **22. Aktueller finaler Status**
+## **22. Wichtigste Probleme und Lösungen**
 
-Am Ende funktionierte:
-
-```text
-ESP32 läuft
-BME280_1 wird erkannt
-BME280_2 wird erkannt
-MQ-2 wird erkannt
-ESP32 sendet an HiveMQ Cloud
-Railway Backend verbindet sich mit HiveMQ
-Railway Backend subscribed auf sensors/#
-Railway Backend empfängt MQTT-Nachrichten
-Railway Backend speichert Sensordaten
-/sensordaten zeigt echte Daten
-Dashboard kann diese Daten anzeigen
-```
-
-Damit ist der wichtigste Teil des Projekts erfolgreich umgesetzt:
-
-```text
-Echte ESP32-Sensordaten werden im Railway Backend empfangen und können im Online-Dashboard angezeigt werden.
-```
+| Problem                           | Kurze Ursache                   | Lösung                                 |
+| --------------------------------- | ------------------------------- | -------------------------------------- |
+| Simulator sendet Fake-Daten       | Docker-Sensor lief noch         | `docker compose stop sensor`           |
+| ESP32 erreicht lokalen MQTT nicht | Netzwerk/Firewall/Hotspot       | Cloud-MQTT mit HiveMQ verwenden        |
+| MQTT `Not authorized`             | falsche Credentials             | `Railway_backend` im Backend setzen    |
+| Backend empfängt nichts           | falsches Topic                  | `client.subscribe("sensors/#")`        |
+| Timestamp fehlt                   | ESP32 sendet keinen Timestamp   | Timestamp im Backend ergänzen          |
+| `/sensordaten` ist leer           | Daten nicht gespeichert         | `sensor_data_list.append(...)`         |
+| Dashboard leer                    | falsche `BACKEND_URL`           | Railway Frontend Variable korrigieren  |
+| Zeit falsch                       | UTC/Greenwich statt Deutschland | Zeit im Frontend nach Berlin umwandeln |
+| BME280 zeigt zu warm              | Sensor nahe Wärmequelle         | Sensor weglegen oder Offset setzen     |
+| MQ-2 Warnung kommt nicht          | Grenzwert zu hoch               | Grenzwert für Demo reduzieren          |
+| E-Mail kommt nicht                | SMTP/Cloud blockiert            | Resend API verwenden                   |
 
 ---
 
-## **23. Wichtige Befehle**
+## **23. Finaler Projektstatus**
+
+Am Ende unterstützt das Projekt:
+
+```text
+echte ESP32-Sensordaten
+mehrere Sensoren
+MQTT-Kommunikation
+MQTT Authentication
+REST API
+Online Dashboard
+Auto Refresh
+historische Analyse
+Diagramme
+Grenzwertwarnungen
+E-Mail-Alerts
+CSV/PDF Export
+Docker Deployment
+Cloud Deployment
+Machine-Learning-Vorhersage
+```
+
+### **Kurze Zusammenfassung**
+
+Das Projekt ist ein vollständiges verteiltes IoT-System. Es verbindet echte Hardware mit Cloud-MQTT, Backend, REST API und Online-Dashboard. Zusätzlich bietet es Sicherheitsfunktionen, Warnungen, Datenexport, historische Analyse und Machine-Learning-Vorhersage.
+
+---
+
+## **24. Wichtige Befehle**
 
 ### **ESP32 Dateien hochladen**
 
@@ -882,8 +965,17 @@ docker compose stop sensor
 docker compose ps
 ```
 
-### **Backend Daten testen**
+### **Backend testen**
 
 ```powershell
 Invoke-RestMethod https://backend-production-4878.up.railway.app/sensordaten | Select-Object -Last 10
+```
+
+### **GitHub Commit**
+
+```powershell
+cd C:\Users\guedr\iot-dashboard
+git add .
+git commit -m "Add project setup and troubleshooting documentation"
+git push
 ```
