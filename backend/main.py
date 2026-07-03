@@ -31,7 +31,7 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 DB_PATH = BASE_DIR / "database" / "iot_dashboard.db"
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
-MQTT_TOPIC = os.getenv("MQTT_TOPIC", "sensors/data")
+MQTT_TOPIC = os.getenv("MQTT_TOPIC", "sensors/#")
 MQTT_KEEPALIVE = int(os.getenv("MQTT_KEEPALIVE", "60"))
 MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "iot-dashboard-backend")
 MQTT_USERNAME = os.getenv("MQTT_BACKEND_USERNAME") or os.getenv("MQTT_USERNAME")
@@ -239,7 +239,7 @@ def on_mqtt_connect(
 
     print("MQTT connected successfully")
     client.subscribe(MQTT_TOPIC, qos=0)
-    print(f"MQTT subscribed to {MQTT_TOPIC}")
+    print("MQTT subscribed to sensors/#")
 
 
 def on_mqtt_message(client: mqtt.Client, userdata: object, msg: mqtt.MQTTMessage) -> None:
