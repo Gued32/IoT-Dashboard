@@ -971,11 +971,3 @@ docker compose ps
 Invoke-RestMethod https://backend-production-4878.up.railway.app/sensordaten | Select-Object -Last 10
 ```
 
-### **GitHub Commit**
-
-```powershell
-cd C:\Users\guedr\iot-dashboard
-git add .
-git commit -m "Add project setup and troubleshooting documentation"
-git push
-```
