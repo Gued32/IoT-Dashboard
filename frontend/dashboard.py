@@ -433,34 +433,39 @@ sensor_df = df.copy()
 chart_df = pd.DataFrame()
 table_df = pd.DataFrame()
 if not df.empty and "timestamp" in df.columns:
+    # Backend-Zeitstempel als UTC einlesen
     df["timestamp"] = pd.to_datetime(
         df["timestamp"],
         utc=True,
         errors="coerce",
         format="mixed",
     )
+
+    # UTC automatisch in deutsche Winter- oder Sommerzeit umwandeln
     df["timestamp_dt"] = df["timestamp"].dt.tz_convert("Europe/Berlin")
 
-    # Schöne Anzeige
+    # Deutsches Datums- und Zeitformat
     df["timestamp_display"] = df["timestamp_dt"].dt.strftime("%d.%m.%Y, %H:%M:%S")
+
+    # Ungültige Zeitstempel entfernen
     df = df.dropna(subset=["timestamp_dt"]).copy()
     sensor_df = df.copy()
 
-    # Gleiches Zeitfenster für Verlauf und Tabelle
+    # Gleiches Zeitfenster für Diagramme und Tabelle
     window_df = df.sort_values("timestamp_dt", ascending=False).head(history_limit).copy()
 
-    # Für Diagramme: aufsteigend sortieren
+    # Diagramme chronologisch: alt nach neu
     chart_df = window_df.sort_values("timestamp_dt", ascending=True)
 
-    # Für Tabelle: absteigend sortieren
+    # Tabelle: neu nach alt
     table_df = window_df.sort_values("timestamp_dt", ascending=False)
 
-latest = filtered_history[0] if filtered_history else None
-latest_display = (
-    table_df["timestamp_display"].iloc[0]
-    if not table_df.empty and "timestamp_display" in table_df.columns
-    else "-"
-)
+latest = None
+latest_display = "-"
+
+if not table_df.empty:
+    latest = table_df.iloc[0].to_dict()
+    latest_display = table_df.iloc[0]["timestamp_display"]
 sensor_type = None
 if latest:
     sensor_type = latest.get("sensor_type")
@@ -934,9 +939,16 @@ elif table_df.empty:
     st.info("Noch keine Messwerte vorhanden.")
 else:
     table_limit = history_limit
+    sorted_sensor_df = sensor_df.copy()
+
+    if "timestamp_dt" in sorted_sensor_df.columns:
+        sorted_sensor_df = sorted_sensor_df.sort_values(
+            "timestamp_dt",
+            ascending=False,
+        )
 
     if selected_sensor.startswith("mq2"):
-        table_df = sensor_df[
+        table_df = sorted_sensor_df[
             [
                 "sensor_id",
                 "timestamp_display",
@@ -961,7 +973,7 @@ else:
         )
 
     else:
-        table_df = sensor_df[
+        table_df = sorted_sensor_df[
             [
                 "sensor_id",
                 "timestamp_display",
