@@ -40,6 +40,34 @@ Railway Frontend Dashboard
 
 Der ESP32 liest echte Sensordaten und sendet diese per MQTT an HiveMQ Cloud. Das Railway Backend empfängt die MQTT-Nachrichten als Subscriber, verarbeitet die Daten und stellt sie über eine REST API bereit. Das Online-Dashboard ruft die Daten ab und zeigt sie live, historisch und grafisch an.
 
+### **Systemablauf**
+
+1. Die Sensoren erfassen Messwerte.
+2. Der ESP32 erstellt JSON-Datenpakete.
+3. Die Daten werden über MQTT veröffentlicht.
+4. Der MQTT-Broker verteilt die Nachrichten.
+5. Das Backend empfängt die Daten als Subscriber.
+6. Das Backend validiert und speichert die Messwerte.
+7. Die REST API stellt die Daten bereit.
+8. Das Dashboard lädt die Daten automatisch.
+9. Die Messwerte werden grafisch und tabellarisch angezeigt.
+10. Warnungen, historische Analyse und Vorhersagen werden berechnet.
+
+### **Verwendete Technologien**
+
+* Python - Backend, Sensorlogik und Datenverarbeitung
+* MicroPython - Programmierung des ESP32
+* FastAPI - REST API und Backend-Server
+* Streamlit - Web-Dashboard
+* MQTT - Publish/Subscribe-Kommunikation
+* HiveMQ Cloud - Cloud MQTT Broker
+* Mosquitto - lokaler MQTT Broker für Tests
+* Docker - Containerisierung der Anwendung
+* Railway - Cloud Deployment von Backend und Frontend
+* SQLite / Backend-Speicherung - Speicherung historischer Sensordaten
+* CSV/PDF Export - Export von Messwerten
+* Machine Learning - Vorhersage zukünftiger Sensorwerte
+
 ---
 
 ## **3. Echte ESP32-Sensordaten**
@@ -336,6 +364,16 @@ https://iot-dashboard-production-da48.up.railway.app
 2. Backend URL im Frontend setzen.
 3. Frontend neu deployen.
 4. Browser mit `Strg + F5` neu laden.
+
+### **Benutzer-Login**
+
+Das Dashboard enthält einen Benutzer-Login. Dadurch ist der Zugriff auf die Visualisierung geschützt.
+
+Vorteile:
+
+* Nicht jeder Benutzer kann sofort auf das Dashboard zugreifen.
+* Die Oberfläche ist besser für Präsentation und Projektabgabe geeignet.
+* Sensordaten werden nicht ohne Anmeldung angezeigt.
 
 ### **Railway Frontend Variable**
 
