@@ -8,6 +8,7 @@ from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Generator, List, Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -65,6 +66,7 @@ class SensorData(BaseModel):
     sensor_id: str
     sensor_type: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp_de: Optional[str] = None
     temperature_c: Optional[float] = None
     humidity_percent: Optional[float] = None
     pressure_hpa: Optional[float] = None
@@ -425,6 +427,50 @@ def on_shutdown() -> None:
     mqtt_client = None
 
 
+BERLIN_TIMEZONE = ZoneInfo("Europe/Berlin")
+
+
+def convert_timestamp_to_german_time(record):
+    """
+    Wandelt den UTC-Zeitstempel nur für die API-Antwort
+    in deutsche Zeit um. Die Datenbank bleibt unverändert.
+    """
+
+    if hasattr(record, "model_dump"):
+        item = record.model_dump()
+    else:
+        item = dict(record)
+
+    timestamp_raw = item.get("timestamp")
+
+    if not timestamp_raw:
+        item["timestamp_de"] = None
+        return item
+
+    try:
+        timestamp_utc = datetime.fromisoformat(
+            str(timestamp_raw).replace("Z", "+00:00")
+        )
+
+        if timestamp_utc.tzinfo is None:
+            timestamp_utc = timestamp_utc.replace(tzinfo=timezone.utc)
+
+        timestamp_de = timestamp_utc.astimezone(BERLIN_TIMEZONE)
+
+        # Maschinenlesbarer ISO-Zeitstempel mit deutscher Zeitzone
+        item["timestamp"] = timestamp_de.isoformat()
+
+        # Zusätzlich gut lesbare deutsche Darstellung
+        item["timestamp_de"] = timestamp_de.strftime(
+            "%d.%m.%Y, %H:%M:%S"
+        )
+
+    except (ValueError, TypeError):
+        item["timestamp_de"] = None
+
+    return item
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
@@ -535,7 +581,7 @@ def get_sensor_history() -> list[SensorData]:
             """
         ).fetchall()
 
-    return [
+    daten = [
         SensorData(
             sensor_id=row["sensor_id"],
             sensor_type=row["sensor_type"],
@@ -550,4 +596,9 @@ def get_sensor_history() -> list[SensorData]:
             email_sent=bool(row["email_sent"]),
         )
         for row in rows
+    ]
+
+    return [
+        convert_timestamp_to_german_time(entry)
+        for entry in daten
     ]
