@@ -433,24 +433,16 @@ sensor_df = df.copy()
 chart_df = pd.DataFrame()
 table_df = pd.DataFrame()
 if not df.empty and "timestamp" in df.columns:
-    timestamp_raw = df["timestamp"].astype("string")
-    has_timezone = timestamp_raw.str.contains(r"(Z|[+-]\d{2}:\d{2})$", na=False)
-
-    aware_dt = pd.to_datetime(
-        timestamp_raw.where(has_timezone),
-        errors="coerce",
-        format="mixed",
+    df["timestamp"] = pd.to_datetime(
+        df["timestamp"],
         utc=True,
-    ).dt.tz_convert("Europe/Berlin")
-    naive_dt = pd.to_datetime(
-        timestamp_raw.where(~has_timezone),
         errors="coerce",
         format="mixed",
-    ).dt.tz_localize("Europe/Berlin", nonexistent="shift_forward", ambiguous="NaT")
-    df["timestamp_dt"] = aware_dt.fillna(naive_dt)
+    )
+    df["timestamp_dt"] = df["timestamp"].dt.tz_convert("Europe/Berlin")
 
     # Schöne Anzeige
-    df["timestamp_display"] = df["timestamp_dt"].dt.strftime("%d.%m.%Y %H:%M:%S")
+    df["timestamp_display"] = df["timestamp_dt"].dt.strftime("%d.%m.%Y, %H:%M:%S")
     df = df.dropna(subset=["timestamp_dt"]).copy()
     sensor_df = df.copy()
 
@@ -467,7 +459,7 @@ latest = filtered_history[0] if filtered_history else None
 latest_display = (
     table_df["timestamp_display"].iloc[0]
     if not table_df.empty and "timestamp_display" in table_df.columns
-    else latest.get("timestamp", "unbekannt") if latest else "unbekannt"
+    else "-"
 )
 sensor_type = None
 if latest:
