@@ -937,6 +937,7 @@ CSV/PDF Export
 Docker Deployment
 Cloud Deployment
 Machine-Learning-Vorhersage
+Benutzer-Login im Dashboard
 ```
 
 ### **Kurze Zusammenfassung**
@@ -945,7 +946,19 @@ Das Projekt ist ein vollständiges verteiltes IoT-System. Es verbindet echte Har
 
 ---
 
-## **24. Wichtige Befehle**
+## **24. Projektstruktur**
+
+```text
+/backend        # FastAPI Backend, MQTT Subscriber, REST API
+/frontend       # Streamlit Dashboard
+/sensors        # Sensor-Simulation
+/database       # Datenbank und Modelle
+/docs           # Projektdokumentation
+```
+
+---
+
+## **25. Wichtige Befehle**
 
 ### **ESP32 Dateien hochladen**
 
