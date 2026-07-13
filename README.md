@@ -1,4 +1,4 @@
-# IoT-Dashboard 
+# IoT-Sensor-Dashboard 
 
 ## 📌 Projektübersicht
 
