@@ -1,4 +1,4 @@
-# **IoT-Dashboard – Projektablauf, wichtige Schritte und Fehlerbehebung**
+# **IoT-Sensor-Dashboard – Projektablauf, wichtige Schritte und Fehlerbehebung**
 
 ## **1. Projektziel**
 
