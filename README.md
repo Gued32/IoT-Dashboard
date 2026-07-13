@@ -507,6 +507,8 @@ https://backend-production-4878.up.railway.app/sensordaten
 /docs           # Projektdokumentation
 ```
 
+[Abschlussbericht als PDF](docs/IoT_Sensor_Dashboard_Abschlussbericht.pdf)
+
 ---
 
 ## ✅ Finaler Projektstatus
